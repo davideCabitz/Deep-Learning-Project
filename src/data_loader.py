@@ -27,6 +27,13 @@ def _get_project_root():
     return Path(__file__).parent.parent
 
 
+def _get_artifacts_dir():
+    """Directory holding cached artifacts (frozen DB, CLIP feature tensors)."""
+    artifacts = _get_project_root() / 'artifacts'
+    artifacts.mkdir(exist_ok=True)
+    return artifacts
+
+
 def _get_celeba_root():
     """Find CelebA dataset location (check multiple paths)."""
     project_root = _get_project_root()
@@ -55,11 +62,10 @@ def setup_frozen_db(force=False):
     Args:
         force: if True, rebuild even if file exists
     """
-    project_root = _get_project_root()
-    attr_cache_path = project_root / 'celeba_attributes_test.pt'
+    attr_cache_path = _get_artifacts_dir() / 'celeba_attributes_test.pt'
 
     if attr_cache_path.exists() and not force:
-        print(f"✓ Frozen DB already exists: {attr_cache_path}")
+        print(f"[OK] Frozen DB already exists: {attr_cache_path}")
         return
 
     print("Building frozen attribute tensor...")
@@ -108,7 +114,7 @@ def setup_frozen_db(force=False):
     print(f"  Shape: {celeba_attrs.shape}")
     print(f"  dtype: {celeba_attrs.dtype}")
     print(f"  Range: [{celeba_attrs.min():.1f}, {celeba_attrs.max():.1f}]")
-    print("✓ Frozen DB ready (do not modify)")
+    print("[OK] Frozen DB ready (do not modify)")
 
 
 def load_attributes():
@@ -118,8 +124,7 @@ def load_attributes():
     Returns:
         torch.Tensor: [N, 40] float32 tensor, values in {0.0, 1.0}
     """
-    project_root = _get_project_root()
-    attr_cache_path = project_root / 'celeba_attributes_test.pt'
+    attr_cache_path = _get_artifacts_dir() / 'celeba_attributes_test.pt'
 
     if not attr_cache_path.exists():
         raise FileNotFoundError(
