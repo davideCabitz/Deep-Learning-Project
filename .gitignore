@@ -6,6 +6,7 @@ celeba.zip
 *.zip
 
 # Cached CLIP features / tensors
+artifacts/
 *.pt
 
 # Notebook / Python cruft
