@@ -122,9 +122,11 @@ We call these two lists `T_pos` and `T_neg` throughout the code.
 
 This file is **authoritative** — we do not modify it. Its structure:
 
-- It is a **list of 14 query objects**. (Note: 14, not 12 — and `-Young` appears
-  twice. We still need to confirm against the spec which are the "mandatory 12"
-  for the final results table. TODO before final report.)
+- It is a **list of 14 query objects**. The spec *text* says 12, but the spec also
+  says the JSON is authoritative — so we evaluate on **all 14, exactly as they are
+  in the file**, and just note the 14-vs-12 mismatch in one sentence in the report.
+  (The difference: `-Young` is listed twice, and two composed queries differ from
+  the spec table. No action needed in code — we simply loop over the file.)
 - Each object has:
   - `"query"`: the query string (e.g. `"+Smiling"`).
   - `"ground_truth"`: a dictionary mapping **source image** → **list of valid target images**.
