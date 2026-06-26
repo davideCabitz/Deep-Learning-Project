@@ -135,6 +135,46 @@ def load_attributes():
     return torch.load(attr_cache_path)
 
 
+def load_image_features():
+    """
+    Load the cached CLIP image-feature table (CONTRACT.md section 6).
+
+    Built once in Colab and dropped into artifacts/. Each row is L2-normalized.
+
+    Returns:
+        torch.Tensor: [N, 512] float32, row i = features of celeba[i].
+    """
+    path = _get_artifacts_dir() / 'clip_image_features_test.pt'
+
+    if not path.exists():
+        raise FileNotFoundError(
+            f"CLIP image features not found. Build them in Colab and place at:\n"
+            f"  {path}\n"
+            f"Expected: [N, 512] float32, L2-normalized (CONTRACT.md section 6)."
+        )
+
+    return torch.load(path)
+
+
+def load_text_features():
+    """
+    Load the cached CLIP text-feature table for the 40 attributes, if present.
+
+    Optional: text encoding is cheap (40 short prompts), so methods.py can also
+    compute these on the fly. When cached from Colab, it's a dict keyed by
+    attribute name → [512] L2-normalized tensor.
+
+    Returns:
+        dict[str, torch.Tensor] | None: {attr_name: [512]} or None if not cached.
+    """
+    path = _get_artifacts_dir() / 'clip_text_features_test.pt'
+
+    if not path.exists():
+        return None
+
+    return torch.load(path)
+
+
 def load_celeba_dataset():
     """
     Load CelebA test split with CLIP preprocessing.
