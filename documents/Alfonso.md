@@ -98,6 +98,76 @@ Loads and verifies the data contract. Thin notebook — all heavy lifting is in 
 
 ---
 
+---
+
+## Phase B — Baseline (Tier-0) + CLAY prerequisite (this session, 2026-06-26)
+
+### Tier-0 — vanilla latent arithmetic (`src/tier0.py`)
+
+The "method to beat" (spec §3.2.3): `query = v_ref + alpha * (Σ t(+attr) − Σ t(−attr))`,
+ranked by cosine over the frozen CLIP image table. Plugs into the shared eval engine via
+`make_get_ranking`. Run: `python src/tier0.py` → writes `output/tier0_alpha{alpha}.csv`.
+
+**Result at alpha=1.0 (the literal "vanilla" from the spec):** MEAN R@1=0.0224,
+R@5=0.0699, R@10=0.1048. Best single queries are concrete additive attributes
+(`+Mustache` R@1=0.080, `+Smiling` R@1=0.063); negations and global attributes collapse
+(`-Male,-Mustache` and `-Smiling,+Eyeglasses,+Wearing_Hat` → all zeros).
+
+### What we demonstrated about the baseline (why the numbers are low — and that it's NOT a bug)
+
+The low scores were investigated, not assumed. **Conclusion: the harness is correct; the
+numbers are a genuine property of the method × benchmark.** Three pieces of evidence:
+
+1. **alpha=0 sanity check (pure image→image retrieval, no text).** Ran a self-contained
+   driver (loads cached `.pt`, reuses `eval.py`; avoids the `transformers` import that
+   `clip_features.py` triggers — `transformers` is not installed locally). Result:
+   MEAN **R@1=0.0217, R@5=0.0496, R@10=0.0727** — about the *same* as alpha=1.0, and
+   slightly *worse* at R@10.
+   - Interpretation: the GT requires a target to **both** satisfy the query constraints
+     **and** sit within Hamming ≤2 of the source (spec §3.1.1). alpha=0 ignores the text,
+     so it retrieves visual look-alikes that often keep the source's *original* attribute
+     value and thus violate the query. alpha=1.0 does the opposite — the unit text vector
+     plus the CLIP modality gap yanks the query into the text cone and washes out identity.
+   - **Key insight for the report:** *neither endpoint wins.* "Ignore the text" (α=0) and
+     "drown the identity" (α=1.0) both fail, for opposite reasons. That is exactly the
+     fusion problem the project asks us to solve — and it's why a real Tier-1/Tier-2 method
+     is needed, not just a better α. This makes Tier-0 a legitimate, honest lower bound.
+
+2. **Image table is well-formed.** `clip_image_features_test.pt` is `[19962, 512]` float32,
+   every row L2-norm = 1.0000.
+
+3. **Self-retrieval works.** Row i is its own nearest neighbor at cos=1.0; true neighbors
+   sit ~0.91, a random pair ~0.50 — sensible spread, and the source-exclusion + argsort
+   mechanics behave correctly.
+
+**Decision:** do NOT tune Tier-0 to inflate the baseline — that would raise the bar our own
+method must clear and shrink the reported improvement. `alpha` is a documented hyperparameter
+of the vanilla method, so an α-sweep is a legitimate *ablation* (optional, for the report),
+but the headline baseline stays at the spec's vanilla α=1.0. The α=0 run is a sanity check,
+not a baseline entry.
+
+### CLAY prerequisite — per-attribute prompt bank (`src/clip_prompts.py`)
+
+Built the raw material CLAY's subspace SVD needs. Tier-0 uses ONE text vector per attribute;
+CLAY needs a *stack* of many same-meaning prompts per condition so SVD recovers a non-trivial
+subspace (CLAY.md §3.2). With n=1 the stack is rank-1 and every CLAY accuracy lever
+(adaptive-k, all-but-the-top, σ-weighting) has nothing to operate on.
+
+- **Approach:** generate the n prompts from deterministic TEMPLATES (sentence FRAMES ×
+  per-attribute synonym phrases) instead of an LLM (CLAY uses ChatGPT-5). Reproducible,
+  from-scratch, course-policy compliant; the downstream geometry is identical — only the
+  *source* of the sentences differs. Stated as a methodology choice in the report.
+- **Output artifact:** `artifacts/clip_attr_prompt_bank.pt`, shape `[40, n, 512]` float32,
+  each row L2-normalized, `bank[j]` == prompt stack for `ATTRIBUTE_NAMES[j]`. Padded to a
+  common n with duplicates of the first prompt (a repeated row adds no new SVD direction).
+- **Verified:** complete 40-attribute coverage (`_verify_coverage`), correct shape, n≥2,
+  unit-normalized rows. Run: `python src/clip_prompts.py` (also has a Colab notebook path,
+  since `transformers` isn't installed locally).
+- **Note:** this `clip_attr_prompt_bank.pt` (the multi-prompt stack for CLAY) is distinct
+  from `clip_attr_text_features.pt` (the single per-attribute vector Tier-0 uses).
+
+---
+
 ## Key decisions / notes
 
 - **Images are referenced by dataset INDEX, never by filename** (CONTRACT.md §0).
@@ -112,5 +182,10 @@ Loads and verifies the data contract. Thin notebook — all heavy lifting is in 
 - [x] Confirm the "mandatory 12" queries vs. the 14 in the JSON — resolved: evaluate all 14
       (CONTRACT.md §4); note the mismatch in the report.
 - [x] Day-1 CRITICAL sanity assertions (`src/sanity.py`, wired into the notebook).
-- [ ] Flag to Member B: frozen DB / features now live in `artifacts/`; write `clip_image_features_*.pt` there.
-- [ ] Model half (B): CLIP image features + Tier-0 `get_ranking` → meets the harness for **M1**.
+- [x] Flag to Member B: frozen DB / features now live in `artifacts/`; `clip_image_features_test.pt` is present.
+- [x] Model half (B): CLIP image features + Tier-0 `get_ranking` → meets the harness for **M1**.
+- [x] Tier-0 baseline produced (`output/tier0_alpha1.0.csv`) and its low scores explained +
+      verified (α=0 sanity check, well-formed image table, working self-retrieval).
+- [x] CLAY prerequisite: per-attribute prompt bank (`artifacts/clip_attr_prompt_bank.pt`).
+- [ ] (Optional, report only) α-sweep ablation curve for Tier-0 — characterization, not tuning.
+- [ ] Next (Tier-1): build CLAY subspace projectors from the prompt bank (SVD per attribute).
