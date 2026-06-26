@@ -44,20 +44,49 @@ The "ruler" every method is scored through. Implemented and self-tested:
 
 This means the evaluation harness is trustworthy *before* any real retrieval method exists.
 
+### CLIP wrapper + frozen feature DB — [src/clip_features.py](../src/clip_features.py)
+The model half of the frozen DB (CONTRACT §6). Frozen CLIP ViT-B/32, no training.
+- `extract_image_features()` — encodes the whole CelebA test split (vision tower →
+  `visual_projection` → `[N,512]`, L2-normalized) in strict index order (`shuffle=False`,
+  so row `i` == `celeba[i]`, CONTRACT §0). `_verify()` asserts row-count alignment with
+  the attribute tensor + unit norms before saving → `artifacts/clip_image_features_test.pt`.
+- `attr_to_prompt` + `extract_attribute_text_features()` — the **text** side: templates
+  each of the 40 attributes (`"a photo of a person with <attr>"`) through the CLIP text
+  tower → `artifacts/clip_attr_text_features.pt` `[40,512]` (row `j` == attribute `j`).
+  These are the +/− direction vectors every tier nudges with.
+- `load_image_features()` / `load_attribute_text_features()` — loaders mirroring
+  `load_attributes()`.
+- **Note:** called the two-step `vision_model → visual_projection` (and `text_model →
+  text_projection`) explicitly rather than `get_image_features`, because the latter's
+  return type varies across transformers 5.x (returns an output object, not a tensor).
+- **Ran on Colab GPU** ([notebooks/colab_extract_features.ipynb](../notebooks/colab_extract_features.ipynb),
+  a one-and-done extraction notebook); both `.pt` tables verified locally
+  (`[19962,512]`, unit-normed, aligned).
+
+### Tier-0 vanilla latent-arithmetic baseline — [src/tier0.py](../src/tier0.py)  ← Milestone M1 done
+`query = v_ref + alpha·(Σ t⁺ − Σ t⁻)`, ranked by cosine over the frozen DB. Matches the
+shared `score(...) -> ranking` signature (CONTRACT §7) and plugs straight into the eval
+engine; `evaluate_tier0()` scores all 14 queries and writes a CSV
+(`output/tier0_alpha<alpha>.csv`, per-query rows + a MEAN row).
+- **First real numbers (alpha=1.0):** MEAN R@1 0.022, R@5 0.070, **R@10 0.105**;
+  P@1 0.022, P@5 0.017, P@10 0.014.
+- Best single attrs: `+Smiling` (R@10 0.248), `+Mustache` (0.219). **Negation collapses**
+  (`-Male, -Mustache` → 0.000) and composed queries degrade — exactly the failure modes
+  that motivate Tier-2a rejection. Good baseline story for the report.
+- `alpha` is the identity↔modification dial (α-ablation knob).
+
 ---
 
 ## In progress / next up (my lane — Member B)
-- [ ] **CLIP ViT-B/32 wrapper** (HF `openai/clip-vit-base-patch32`, frozen) + attribute →
-      text-prompt templating.
-- [ ] **Offline feature extraction & caching** for the full test corpus + the train subset
-      needed for Φ → `clip_image_features_test.pt` / `clip_image_features_train.pt`
-      (L2-normalized rows, per [CONTRACT](CONTRACT.md) §6); the frozen retrieval DB.
-- [ ] **Tier-0** vanilla latent-arithmetic baseline → first real Recall@K/Precision@K
-      numbers through the eval engine (Milestone M1).
 - [ ] **Tier-1** CLAY reproduction (tangent/log-map, SVD subspace, rotation `H`, naïve
       multi-condition stacking).
 - [ ] **Tier-2a** training-free +/− projection-rejection variant (the guaranteed contribution).
 - [ ] **Modality-gap analysis** (justifies the design choices).
+- [ ] **β knob / α-β sweep** — port a separate negative weight `β` into `tier0.py` (the old
+      [methods.py](../src/methods.py) had it; that file is otherwise superseded by `tier0.py`),
+      then sweep α/β for the ablation.
+- [ ] **Train-subset features** `clip_image_features_train.pt` — only needed for Tier-2b Φ
+      training (Alfonso's lane); deferred until then.
 - [ ] **Report ownership:** Experimental setup, CLIP/CLAY background, and the
       SVD-k / α-β / rotation-`H` ablations.
 
@@ -65,8 +94,10 @@ This means the evaluation harness is trustworthy *before* any real retrieval met
 - Data loading + the `attributes` tensor (`-1 → 0/1` conversion) landed via Alfonso
   (Member A): [data_loader.py](../src/data_loader.py) /
   [Phase_A_Data_Preparation.ipynb](../notebooks/Phase_A_Data_Preparation.ipynb).
-- My tier sequence (0→1→2a) is self-contained on the frozen DB once features are cached;
-  it plugs into the eval engine through the shared `score(...) -> ranking` signature
-  ([CONTRACT](CONTRACT.md) §7). Until features exist, the eval harness is testable on fakes.
+  Caches now live in `artifacts/` (gitignored, `*.pt`).
+- My tier sequence (0→1→2a) is self-contained on the frozen DB — both test tables
+  (`clip_image_features_test.pt`, `clip_attr_text_features.pt`) are cached, so Tier-1/2a
+  run **offline, no Colab**. Everything plugs into the eval engine through the shared
+  `score(...) -> ranking` signature ([CONTRACT](CONTRACT.md) §7).
 - We score on **all 14** queries exactly as in the JSON (authoritative), noting the
   14-vs-12 spec mismatch in one sentence in the report (see [CONTRACT](CONTRACT.md) §4).
