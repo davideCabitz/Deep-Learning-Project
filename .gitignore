@@ -1,3 +1,14 @@
 .env
-.celeba/
+
+# CelebA dataset (huge — never commit; everyone downloads it locally)
+celeba/
+celeba.zip
+*.zip
+
+# Cached CLIP features / tensors
 *.pt
+
+# Notebook / Python cruft
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
