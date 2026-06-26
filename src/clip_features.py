@@ -5,27 +5,18 @@ Turns every test image into a 512-d CLIP ViT-B/32 vector, L2-normalizes it, and
 caches the [N, 512] tensor to disk. Built once, never modified — every retrieval
 method (Tier-0/1/2a, trained Φ) ranks the corpus against this table.
 
-Contract: CONTRACT.md §6 (clip_image_features_test.pt, [N,512] float32, L2-normed
-rows, row i == celeba[i] — same index universe as the attribute tensor and GT JSON).
-
 One-time build:  python src/clip_features.py
 """
 
 import torch
-from pathlib import Path
 from torch.utils.data import DataLoader
 from transformers import CLIPModel
 
-from data_loader import load_celeba_dataset, load_attributes
+from data_loader import load_celeba_dataset, load_attributes, _get_artifacts_dir
 
 
 CLIP_MODEL_NAME = "openai/clip-vit-base-patch32"
 FEATURE_DIM = 512
-
-
-def _get_project_root():
-    """Project root (repo top level)."""
-    return Path(__file__).parent.parent
 
 
 def _pick_device():
@@ -50,7 +41,7 @@ def extract_image_features(batch_size=256, force=False):
         batch_size: images per forward pass.
         force: if True, rebuild even if the cache already exists.
     """
-    out_path = _get_project_root() / "clip_image_features_test.pt"
+    out_path = _get_artifacts_dir() / "clip_image_features_test.pt"
 
     if out_path.exists() and not force:
         print(f"✓ Feature table already exists: {out_path}")
@@ -80,8 +71,13 @@ def extract_image_features(batch_size=256, force=False):
     done = 0
     for pixel_values in loader:
         pixel_values = pixel_values.to(device)
-        # Vision tower only -> [B, 512]. Inputs are already CLIP-normalized.
-        batch_feats = model.get_image_features(pixel_values=pixel_values)
+        # Vision tower -> pooled [B,768], then CLIP's visual_projection -> [B,512].
+        # (This is exactly what get_image_features does internally; we call the two
+        # steps explicitly because get_image_features's return type varies across
+        # transformers versions — some return an output object, not a tensor.)
+        # Inputs are already CLIP-normalized by load_celeba_dataset().
+        vision_outputs = model.vision_model(pixel_values=pixel_values)
+        batch_feats = model.visual_projection(vision_outputs.pooler_output)
         # L2-normalize rows so cosine similarity == dot product downstream (CONTRACT §6).
         batch_feats = torch.nn.functional.normalize(batch_feats, p=2, dim=1)
         feats.append(batch_feats.cpu())
@@ -125,7 +121,7 @@ def load_image_features():
     Returns:
         torch.Tensor: [N, 512] float32, each row L2-normalized.
     """
-    path = _get_project_root() / "clip_image_features_test.pt"
+    path = _get_artifacts_dir() / "clip_image_features_test.pt"
     if not path.exists():
         raise FileNotFoundError(
             f"Feature table not found. Run extract_image_features() first.\n"
