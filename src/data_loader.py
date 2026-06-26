@@ -155,5 +155,5 @@ def load_celeba_dataset():
 
 
 if __name__ == '__main__':
-    # One-time setup: python project/data_loader.py
+    # One-time setup: python src/data_loader.py
     setup_frozen_db()

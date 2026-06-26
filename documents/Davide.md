@@ -26,7 +26,9 @@ _Last updated: 2026-06-26._
   [CLAY_compositionality](CLAY_compositionality.md), [SOTA](SOTA.md), [links](links.md).
 - Project skeleton notebooks under [skeleton/](../skeleton/).
 
-### Evaluation engine — [src/eval.ipynb](../src/eval.ipynb)  ← main deliverable so far
+### Evaluation engine — [src/eval.py](../src/eval.py) (+ thin [notebooks/eval.ipynb](../notebooks/eval.ipynb))  ← main deliverable so far
+Split into a reusable module (`src/eval.py`) so every method notebook can `import` it,
+with the notebook reduced to running/plotting/self-tests.
 The "ruler" every method is scored through. Implemented and self-tested:
 - `find_eval_json()` — locates `Evaluation/celeba_evaluation.json` from any working dir
   (src/, repo root, or Colab).
@@ -61,8 +63,8 @@ This means the evaluation harness is trustworthy *before* any real retrieval met
 
 ## Notes / dependencies
 - Data loading + the `attributes` tensor (`-1 → 0/1` conversion) landed via Alfonso
-  (Member A): [data_loader.py](../project/data_loader.py) /
-  [Phase_A_Data_Preparation.ipynb](../project/Phase_A_Data_Preparation.ipynb).
+  (Member A): [data_loader.py](../src/data_loader.py) /
+  [Phase_A_Data_Preparation.ipynb](../notebooks/Phase_A_Data_Preparation.ipynb).
 - My tier sequence (0→1→2a) is self-contained on the frozen DB once features are cached;
   it plugs into the eval engine through the shared `score(...) -> ranking` signature
   ([CONTRACT](CONTRACT.md) §7). Until features exist, the eval harness is testable on fakes.
