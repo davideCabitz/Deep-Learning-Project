@@ -166,6 +166,40 @@ subspace (CLAY.md §3.2). With n=1 the stack is rank-1 and every CLAY accuracy l
 - **Note:** this `clip_attr_prompt_bank.pt` (the multi-prompt stack for CLAY) is distinct
   from `clip_attr_text_features.pt` (the single per-attribute vector Tier-0 uses).
 
+### Ablation — Tier-0 on the prompt bank (prompt ensembling)
+
+Ran Tier-0 unchanged but swapped `t(attr)`: instead of the single-prompt vector, use the
+**mean of that attribute's n prompts** from `clip_attr_prompt_bank.pt`, re-normalized to the
+unit sphere. Same α=1.0, same image table, same scoring/eval. Output:
+`output/tier0_promptbank_alpha1.0.csv` (vs single-prompt `output/tier0_alpha1.0.csv`).
+
+| Metric | Single-prompt | Prompt-bank (mean) | Δ |
+|---|---|---|---|
+| MEAN R@1  | 0.0224 | **0.0243** | +0.0019 |
+| MEAN R@5  | 0.0699 | **0.0715** | +0.0016 |
+| MEAN R@10 | 0.1048 | **0.1050** | +0.0002 |
+
+**Why it's better (mechanism):** this is classic **CLIP prompt ensembling** (the standard
+80-template ImageNet trick). A single text embedding mixes the *concept* with
+*phrasing-specific noise* (wording/structure/token quirks). Averaging many same-meaning,
+differently-worded prompts lets the shared concept add coherently while the per-phrasing
+noise points in random directions and partially **cancels**; after re-normalizing, the
+direction points more purely at the concept. So ranking improves slightly.
+
+**Why the gain is small / not uniform:** the mean only denoises the *text term*. It does
+**nothing** about the modality gap or the identity-vs-text trade-off — the actual structural
+limits diagnosed above. So concrete single attributes improve most (`+Male` R@10
+0.019→0.027, `+Eyeglasses,+Smiling` R@10 0.069→0.074), dead composite-negations stay dead
+(`-Male,-Mustache` = 0.0000 in both), and a few rows are flat or fractionally *worse*
+(`+Mustache` R@1 0.0797→0.0698). It wins **in aggregate**, not on every query; the +0.0002
+at R@10 is effectively a tie.
+
+**Status:** this is an **ablation row, not a baseline replacement.** `output/tier0_alpha1.0.csv`
+(spec's vanilla single prompt) remains *the* official Tier-0 baseline. Takeaway for the
+report: richer prompts are a real but minor lever inside latent arithmetic; closing the gap
+needs CLAY/Tier-2, not better prompts. (Driver currently a scratchpad script — fold into
+`src/tier0.py` as a `use_prompt_bank=True` option if we want it repo-tracked.)
+
 ---
 
 ## Key decisions / notes
