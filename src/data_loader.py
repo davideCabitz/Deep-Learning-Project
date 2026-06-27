@@ -23,19 +23,18 @@ ATTR_TO_IDX = {name: i for i, name in enumerate(ATTRIBUTE_NAMES)}
 
 
 def _get_project_root():
-    """Get the project root directory."""
     return Path(__file__).parent.parent
 
 
 def _get_artifacts_dir():
-    """Directory holding cached artifacts (frozen DB, CLIP feature tensors)."""
+    # Cached-artifacts dir (frozen DB + CLIP feature tensors); created on demand.
     artifacts = _get_project_root() / 'artifacts'
     artifacts.mkdir(exist_ok=True)
     return artifacts
 
 
 def _get_celeba_root():
-    """Find CelebA dataset location (check multiple paths)."""
+    # Locate the CelebA dataset, probing the known install paths in order.
     project_root = _get_project_root()
 
     celeba_paths = [
@@ -53,15 +52,10 @@ def _get_celeba_root():
 
 
 def setup_frozen_db(force=False):
-    """
-    Build and save frozen attribute tensor.
-
-    Reads from CelebA's list_attr_celeba.txt, filters to test split,
-    converts -1/+1 → 0.0/1.0, saves as float32 tensor.
-
-    Args:
-        force: if True, rebuild even if file exists
-    """
+    # Build the frozen [N, 40] attribute tensor for the CelebA test split.
+    # Reads list_attr_celeba.txt, keeps test-split rows, maps -1/+1 → 0.0/1.0,
+    # caches as float32. Built once, never modified — every method reads it as-is.
+    # `force` rebuilds even if the cache exists.
     attr_cache_path = _get_artifacts_dir() / 'celeba_attributes_test.pt'
 
     if attr_cache_path.exists() and not force:
@@ -70,7 +64,7 @@ def setup_frozen_db(force=False):
 
     print("Building frozen attribute tensor...")
 
-    # Load CelebA to get test split filenames
+    # Need the test-split filenames so we can filter the raw attribute file to them.
     celeba_root = _get_celeba_root()
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -88,13 +82,12 @@ def setup_frozen_db(force=False):
     test_filenames = set(celeba.filename)
     print(f"  Test split: {len(test_filenames)} images")
 
-    # Read attributes from file and filter to test split
     attributes = []
     attr_file = celeba_root / 'celeba' / 'list_attr_celeba.txt'
 
     with open(attr_file, 'r') as f:
-        f.readline()  # Skip total count
-        f.readline()  # Skip header
+        f.readline()  # line 1: total count
+        f.readline()  # line 2: column header
 
         for line in f:
             parts = line.strip().split()
@@ -104,11 +97,10 @@ def setup_frozen_db(force=False):
                 attrs = [int(x) for x in parts[1:]]
                 attributes.append(attrs)
 
-    # Convert to float32 and map -1 → 0.0, +1 → 1.0
+    # Map raw -1/+1 labels onto a clean 0/1 mask: (x+1)/2.
     celeba_attrs = torch.tensor(attributes, dtype=torch.float32)
     celeba_attrs = (celeba_attrs + 1) / 2
 
-    # Save
     torch.save(celeba_attrs, attr_cache_path)
     print(f"  Saved: {attr_cache_path}")
     print(f"  Shape: {celeba_attrs.shape}")
@@ -118,12 +110,8 @@ def setup_frozen_db(force=False):
 
 
 def load_attributes():
-    """
-    Load the frozen attribute tensor.
-
-    Returns:
-        torch.Tensor: [N, 40] float32 tensor, values in {0.0, 1.0}
-    """
+    # Load the frozen [N, 40] float32 attribute mask (values in {0.0, 1.0}).
+    # Raises if absent — run setup_frozen_db() first.
     attr_cache_path = _get_artifacts_dir() / 'celeba_attributes_test.pt'
 
     if not attr_cache_path.exists():
@@ -136,14 +124,8 @@ def load_attributes():
 
 
 def load_image_features():
-    """
-    Load the cached CLIP image-feature table (CONTRACT.md section 6).
-
-    Built once in Colab and dropped into artifacts/. Each row is L2-normalized.
-
-    Returns:
-        torch.Tensor: [N, 512] float32, row i = features of celeba[i].
-    """
+    # Load the cached [N, 512] CLIP image-feature table (CONTRACT §6).
+    # Built once in Colab, dropped into artifacts/; row i = celeba[i], L2-normalized.
     path = _get_artifacts_dir() / 'clip_image_features_test.pt'
 
     if not path.exists():
@@ -157,16 +139,9 @@ def load_image_features():
 
 
 def load_text_features():
-    """
-    Load the cached CLIP text-feature table for the 40 attributes, if present.
-
-    Optional: text encoding is cheap (40 short prompts), so methods.py can also
-    compute these on the fly. When cached from Colab, it's a dict keyed by
-    attribute name → [512] L2-normalized tensor.
-
-    Returns:
-        dict[str, torch.Tensor] | None: {attr_name: [512]} or None if not cached.
-    """
+    # Load the cached attribute text table if present, else None.
+    # Optional: encoding 40 short prompts is cheap, so callers may recompute instead.
+    # When cached, it's {attr_name: [512] L2-normalized tensor}.
     path = _get_artifacts_dir() / 'clip_text_features_test.pt'
 
     if not path.exists():
@@ -176,12 +151,7 @@ def load_text_features():
 
 
 def load_celeba_dataset():
-    """
-    Load CelebA test split with CLIP preprocessing.
-
-    Returns:
-        torchvision.datasets.CelebA: test split dataset
-    """
+    # CelebA test split with CLIP preprocessing (resize 224 + CLIP-mean/std normalize).
     celeba_root = _get_celeba_root()
 
     transform = transforms.Compose([

@@ -38,18 +38,11 @@ def _pick_device():
 
 @torch.no_grad()
 def extract_image_features(batch_size=256, force=False):
-    """
-    Encode the whole CelebA test split with frozen CLIP and cache the feature table.
-
-    Iterates the dataset in strict index order (shuffle=False) so row i of the output
-    is celeba[i]. Images arrive ALREADY preprocessed by load_celeba_dataset() (CLIP
-    resize + normalize), so they go straight into the vision encoder — we do NOT run
-    them through CLIPProcessor again (that would normalize twice).
-
-    Args:
-        batch_size: images per forward pass.
-        force: if True, rebuild even if the cache already exists.
-    """
+    # Encode the CelebA test split with frozen CLIP → cache the [N, 512] table.
+    # Iterates in strict index order (shuffle=False) so row i == celeba[i] (§0).
+    # `force` rebuilds even if cached.
+    # (Note: images arrive pre-normalized by load_celeba_dataset(), so they bypass
+    # CLIPProcessor — re-running it would normalize twice.)
     out_path = _get_artifacts_dir() / "clip_image_features_test.pt"
 
     if out_path.exists() and not force:
@@ -106,7 +99,7 @@ def extract_image_features(batch_size=256, force=False):
 
 
 def _verify(image_features):
-    """Fail loudly if the table is misaligned or not unit-normalized."""
+    # Tripwire: assert the table is row-aligned to attributes, 512-d, unit-normalized.
     n_attrs = load_attributes().shape[0]
     n_feats = image_features.shape[0]
     assert n_feats == n_attrs, (
@@ -124,12 +117,7 @@ def _verify(image_features):
 
 
 def load_image_features():
-    """
-    Load the frozen CLIP feature table.
-
-    Returns:
-        torch.Tensor: [N, 512] float32, each row L2-normalized.
-    """
+    # Load the frozen [N, 512] CLIP image table (each row L2-normalized).
     path = _get_artifacts_dir() / "clip_image_features_test.pt"
     if not path.exists():
         raise FileNotFoundError(
@@ -143,23 +131,16 @@ def load_image_features():
 # Attribute text embeddings — the +/- direction vectors every method nudges with
 # ---------------------------------------------------------------------------
 def attr_to_prompt(name: str) -> str:
-    """Turn an attribute name into a CLIP text prompt.
-
-    'Black_Hair' -> 'a photo of a person with black hair'.
-    """
+    # Attribute name → CLIP prompt ('Black_Hair' → 'a photo of a person with black hair').
     phrase = name.replace("_", " ").lower()
     return TEXT_TEMPLATE.format(attr=phrase)
 
 
 @torch.no_grad()
 def extract_attribute_text_features(force=False):
-    """
-    Encode a text prompt for each of the 40 attributes with the frozen CLIP text
-    tower and cache the [40, 512] L2-normalized table.
-
-    Row j is the embedding of ATTRIBUTE_NAMES[j], so it lines up with column j of
-    the attribute tensor (CONTRACT §1). Cheap (40 short prompts) — runs on CPU.
-    """
+    # Encode one prompt per attribute with frozen CLIP → cache [40, 512] table.
+    # Row j == embedding of ATTRIBUTE_NAMES[j], aligned to attr column j (§1).
+    # Cheap (40 short prompts) — runs fine on CPU. `force` rebuilds even if cached.
     out_path = _get_artifacts_dir() / "clip_attr_text_features.pt"
 
     if out_path.exists() and not force:
@@ -192,12 +173,7 @@ def extract_attribute_text_features(force=False):
 
 
 def load_attribute_text_features():
-    """
-    Load the frozen [40, 512] attribute text-embedding table (row j == attribute j).
-
-    Returns:
-        torch.Tensor: [40, 512] float32, each row L2-normalized.
-    """
+    # Load the frozen [40, 512] attribute text table (row j == attr j, L2-normalized).
     path = _get_artifacts_dir() / "clip_attr_text_features.pt"
     if not path.exists():
         raise FileNotFoundError(

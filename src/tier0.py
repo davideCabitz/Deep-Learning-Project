@@ -26,26 +26,19 @@ from eval import parse_query, evaluate_all, format_results_table, load_eval_json
 
 
 def _output_dir():
-    """Project-root output/ folder for saved results (created on demand)."""
+    # Project-root output/ folder for saved CSVs (created on demand).
     out = Path(__file__).parent.parent / "output"
     out.mkdir(exist_ok=True)
     return out
 
 
 def score(T_pos, T_neg, v_ref_idx, image_features, attr_text_features, alpha=1.0):
-    """
-    Rank the corpus for one (query, source image) pair via latent arithmetic.
-
-    Args:
-        T_pos, T_neg     : lists of attribute names (from parse_query).
-        v_ref_idx        : int, the source image's dataset index.
-        image_features   : [N, 512] L2-normalized image table (CONTRACT §6).
-        attr_text_features : [40, 512] L2-normalized attribute text table (row j == attr j).
-        alpha            : weight on the text delta (1.0 = vanilla; tunable for ablation).
-
-    Returns:
-        ranking : list[int] of dataset indices, best-first, source excluded (CONTRACT §5).
-    """
+    # Tier-0 scorer (baseline, the floor every later tier must beat).
+    # q = normalize( v_ref + α·(Σ t⁺ − Σ t⁻) ), then rank corpus by cosine.
+    # Raw latent arithmetic — no subspaces, no learning. Returns dataset indices
+    # best-first with the source excluded (CONTRACT §5).
+    # (Note: adding raw text vectors to an image vector is geometrically crude
+    # because of CLIP's modality gap — Tier-0 ENHANCED corrects exactly this.)
     query = image_features[v_ref_idx].clone()
 
     delta = torch.zeros_like(query)
@@ -55,28 +48,25 @@ def score(T_pos, T_neg, v_ref_idx, image_features, attr_text_features, alpha=1.0
         delta -= attr_text_features[ATTR_TO_IDX[name]]
     query = query + alpha * delta
 
-    # Cosine similarity == dot product since both sides are unit-normalized.
+    # Unit-normalize so the corpus dot product IS cosine similarity.
     query = torch.nn.functional.normalize(query, p=2, dim=0)
     scores = image_features @ query
 
-    # The source image must never appear in its own ranking (CONTRACT §5).
-    scores[v_ref_idx] = float("-inf")
+    scores[v_ref_idx] = float("-inf")        # never rank a source against itself (§5)
 
-    ranking = torch.argsort(scores, descending=True).tolist()
-    return ranking
+    return torch.argsort(scores, descending=True).tolist()
 
 
 def make_get_ranking(query_str, image_features, attr_text_features, alpha=1.0):
-    """Build the get_ranking(src_idx) -> ranking callback the eval engine expects."""
+    # Curry one parsed query into the get_ranking(src_idx) callback eval expects.
     T_pos, T_neg = parse_query(query_str)
     return lambda src_idx: score(T_pos, T_neg, src_idx, image_features, attr_text_features, alpha=alpha)
 
 
 def save_results_csv(results, path, ks=(1, 5, 10)):
-    """Write evaluate_all() output to CSV: one row per query + a final mean row.
-
-    Columns: query, R@k..., P@k..., num_sources. Opens cleanly in Excel/pandas.
-    """
+    # Persist evaluate_all() output: one row per query + a macro-MEAN row.
+    # Columns query, R@k…, P@k…, num_sources — shared layout so every
+    # tier0_*.csv compares directly.
     cols = ["query"] + [f"R@{k}" for k in ks] + [f"P@{k}" for k in ks] + ["num_sources"]
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -88,8 +78,7 @@ def save_results_csv(results, path, ks=(1, 5, 10)):
                 + [f"{res[f'precision@{k}']:.4f}" for k in ks]
                 + [res["num_sources"]]
             )
-        # Macro-average over queries (each query weighted equally).
-        n = len(results)
+        n = len(results)        # macro-average: every query weighted equally
         mean_row = ["MEAN"]
         for metric in [f"recall@{k}" for k in ks] + [f"precision@{k}" for k in ks]:
             mean_row.append(f"{sum(r[metric] for r in results.values()) / n:.4f}")
@@ -99,7 +88,7 @@ def save_results_csv(results, path, ks=(1, 5, 10)):
 
 
 def evaluate_tier0(alpha=1.0, ks=(1, 5, 10), save=True):
-    """Score Tier-0 on the full evaluation benchmark, print the table, and save CSV."""
+    # Run Tier-0 over the full benchmark: load tables, score, print table, save CSV.
     image_features = load_image_features()
     attr_text_features = load_attribute_text_features()
     gt_list = load_eval_json(find_eval_json())
