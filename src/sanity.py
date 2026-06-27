@@ -57,10 +57,8 @@ MIN_TARGETS_PER_SOURCE = 5
 # 1. Indexing — the single most important check
 # ---------------------------------------------------------------------------
 def assert_indexing(celeba=None, *, idx: int = 13, expected: str = EXPECTED_FILENAME_AT_13):
-    """Assert dataset index → filename mapping (CONTRACT.md §0).
-
-    One failure here means every score downstream is wrong, so this runs first.
-    """
+    # Check 1 — indexing tripwire (§0): celeba.filename[13] and the split size.
+    # Runs first because one failure here makes every downstream score silently wrong.
     if celeba is None:
         celeba = load_celeba_dataset()
 
@@ -83,7 +81,7 @@ def assert_indexing(celeba=None, *, idx: int = 13, expected: str = EXPECTED_FILE
 # 2. Attribute tensor — shape, dtype, value range, alignment
 # ---------------------------------------------------------------------------
 def assert_attributes(attributes=None, celeba=None):
-    """Assert the attribute tensor matches CONTRACT.md §2 exactly."""
+    # Check 2 — attribute tensor (§2): [N, 40] float32, values ⊆ {0,1}, index-aligned.
     if attributes is None:
         attributes = load_attributes()
 
@@ -122,11 +120,9 @@ def assert_attributes(attributes=None, celeba=None):
 # 3. Ground-truth viability — the eval JSON honours the protocol
 # ---------------------------------------------------------------------------
 def assert_gt_viability(eval_json=None, *, n_images: int = EXPECTED_N_IMAGES):
-    """Assert every source has ≥5 valid targets and all indices are in range.
-
-    Trusts the JSON as authoritative (CONTRACT.md §4) but verifies it obeys the
-    protocol the rest of the code assumes.
-    """
+    # Check 3 — ground-truth viability: every source has ≥5 in-range targets,
+    # none equal to its own index (§5). Trusts the JSON as authoritative (§4) but
+    # verifies it honours the protocol the rest of the code assumes.
     if eval_json is None:
         eval_json = load_eval_json(find_eval_json())
 
@@ -179,7 +175,8 @@ def assert_gt_viability(eval_json=None, *, n_images: int = EXPECTED_N_IMAGES):
 # 4. Run everything — the one entry point the notebook / CLI calls
 # ---------------------------------------------------------------------------
 def run_all_checks(*, verbose: bool = True) -> dict:
-    """Run all sanity checks; raise on the first failure, else return a summary."""
+    # Single entry point — run checks 1→3 in order, raise on first failure, else
+    # return a summary dict. The notebook calls this so Step 3 PROVES correctness.
     def _say(msg: str):
         if verbose:
             print(msg)

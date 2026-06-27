@@ -115,10 +115,8 @@ ATTR_PHRASES = {
 
 
 def build_prompts_for_attribute(name: str) -> list[str]:
-    """Cross sentence frames with synonym phrases -> the prompt bank for one attribute.
-
-    Returns a de-duplicated list of natural-language prompts, all describing `name`.
-    """
+    # Cross sentence frames × synonym phrases → de-duplicated prompt list for one attr.
+    # Frame kind (noun/adj) picks FRAMES vs PREDICATIVE_FRAMES; the spread IS the subspace.
     kind, phrases = ATTR_PHRASES[name]
     frames = PREDICATIVE_FRAMES if kind == "adj" else FRAMES
 
@@ -134,7 +132,7 @@ def build_prompts_for_attribute(name: str) -> list[str]:
 
 
 def _verify_coverage():
-    """Fail loudly if the synonym table drifts out of sync with the 40-attr master list."""
+    # Tripwire: assert ATTR_PHRASES covers exactly the 40-attr master list — no drift.
     missing = [n for n in ATTRIBUTE_NAMES if n not in ATTR_PHRASES]
     extra = [n for n in ATTR_PHRASES if n not in ATTRIBUTE_NAMES]
     assert not missing, f"ATTR_PHRASES missing attributes: {missing}"
@@ -143,16 +141,11 @@ def _verify_coverage():
 
 @torch.no_grad()
 def extract_prompt_bank(force=False):
-    """
-    Encode every attribute's prompt bank with frozen CLIP and cache [40, n, 512].
-
-    The number of prompts is PADDED to a common n across attributes so the result is a
-    single dense tensor (some attributes have more synonyms than others). Padding rows
-    are exact duplicates of that attribute's first prompt — harmless for SVD because a
-    repeated row adds no new direction to the span (its singular value contribution
-    folds into the existing one). This keeps row j == attribute j and a clean [40, n, 512]
-    shape; downstream code can use the whole stack as-is.
-    """
+    # Encode every attribute's prompt bank with frozen CLIP → cache [40, n, 512].
+    # Per-attr prompt counts differ, so each stack is PADDED to a common n to keep
+    # one dense tensor with row j == attribute j. `force` rebuilds even if cached.
+    # (Note: padding rows duplicate the attr's first prompt — SVD-safe, since a
+    # repeated row adds no new span direction; its singular value folds into the existing one.)
     out_path = _get_artifacts_dir() / "clip_attr_prompt_bank.pt"
 
     if out_path.exists() and not force:
@@ -176,7 +169,6 @@ def extract_prompt_bank(force=False):
     bank = torch.empty(len(ATTRIBUTE_NAMES), n, FEATURE_DIM, dtype=torch.float32)
 
     for j, prompts in enumerate(per_attr_prompts):
-        # Pad with the first prompt so every row of the stack is a valid sentence.
         padded = prompts + [prompts[0]] * (n - len(prompts))
         tokens = tokenizer(padded, padding=True, return_tensors="pt").to(device)
         text_outputs = model.text_model(**tokens)
@@ -195,7 +187,7 @@ def extract_prompt_bank(force=False):
 
 
 def _verify(bank):
-    """Fail loudly if the bank is misshapen or not unit-normalized."""
+    # Tripwire: assert the bank is [40, ≥2, 512] and unit-normalized (CLAY needs n>1).
     assert bank.shape[0] == len(ATTRIBUTE_NAMES), (
         f"Expected {len(ATTRIBUTE_NAMES)} attributes, got {bank.shape[0]}."
     )
@@ -210,13 +202,8 @@ def _verify(bank):
 
 
 def load_prompt_bank():
-    """
-    Load the cached per-attribute prompt bank.
-
-    Returns:
-        torch.Tensor: [40, n, 512] float32. bank[j] is the prompt stack T_c for
-        attribute ATTRIBUTE_NAMES[j]; each row is L2-normalized.
-    """
+    # Load the cached [40, n, 512] prompt bank: bank[j] is the stack T_c for
+    # ATTRIBUTE_NAMES[j], each row L2-normalized. Raises if absent.
     path = _get_artifacts_dir() / "clip_attr_prompt_bank.pt"
     if not path.exists():
         raise FileNotFoundError(

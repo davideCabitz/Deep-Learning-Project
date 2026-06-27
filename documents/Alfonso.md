@@ -200,6 +200,169 @@ report: richer prompts are a real but minor lever inside latent arithmetic; clos
 needs CLAY/Tier-2, not better prompts. (Driver currently a scratchpad script — fold into
 `src/tier0.py` as a `use_prompt_bank=True` option if we want it repo-tracked.)
 
+### Enhanced Tier-0 — three training-free geometry fixes (`src/tier0_enhanced.py`)
+
+Pushed the prompt-ensembling idea further: keep Tier-0's latent arithmetic (no SVD, no
+subspaces, no learning) but correct **three purely geometric mistakes** the naive formula
+makes. Each fix is a mean-subtraction or a renormalization, so it's defensible as "still
+vanilla latent arithmetic, done right" — and crucially it leaves Tier-1 (CLAY) and Tier-2
+their full headroom. Each is an independent toggle, so we can ablate them one at a time.
+
+Recall the naive Tier-0 query, where `t(a)` is the L2-normalized CLIP text vector for
+attribute `a` and `v_ref` the L2-normalized image vector of the reference:
+
+```
+q_naive = normalize( v_ref + α·( Σ_{a∈+} t(a) − Σ_{a∈−} t(a) ) )
+```
+
+The three fixes turn this into:
+
+```
+t̂(a) = normalize( mean_k bank[a,k] − μ_txt )            # FIX 3 then FIX 1
+d     = normalize( Σ_{a∈+} t̂(a) − Σ_{a∈−} t̂(a) )        # FIX 2
+q     = normalize( (v_ref − μ_img) + α·d + μ_img )      # FIX 1 (image side)
+```
+
+where `μ_txt` = mean of all 40 attribute text vectors, `μ_img` = mean of all 19,962 image
+vectors. The rest of this section explains each fix from scratch.
+
+---
+
+**FIX 1 — modality-gap centering** (Liang et al. 2022, *Mind the Gap: Understanding the
+Modality Gap in Multi-modal Contrastive Learning*). *Toggle:* `center`.
+
+*The problem.* CLIP does not place images and text in one shared blob. Empirically the image
+vectors all cluster inside one narrow cone of the unit sphere, and the text vectors cluster
+inside a **different** narrow cone, with a wide empty band between them — this is the
+"modality gap." Because each cone is narrow, **every** attribute text vector `t(a)` is
+dominated by the same shared component: the direction pointing at the centre of the text
+cone, which is exactly the text mean `μ_txt`. Decompose any attribute vector as
+
+```
+t(a) = μ_txt + ( t(a) − μ_txt )
+        └─common─┘   └─the part that actually distinguishes attribute a─┘
+```
+
+`μ_txt` is **identical for all 40 attributes** — it encodes "this is a CLIP text embedding,"
+not "this is *Smiling*." When the naive formula adds `t(a)` to an image vector, most of what
+it adds is this useless common component. It drags the query toward the text cone (and toward
+the *same spot* in it) regardless of which attribute was requested, while the small
+attribute-specific part `t(a) − μ_txt` — the only part that should steer retrieval — is
+swamped.
+
+*The fix.* Subtract the common component before using each text vector, and operate on the
+image side in the same centred frame:
+
+```
+t̂(a)  = normalize( t(a) − μ_txt )         # attribute direction with the common offset removed
+q     = normalize( (v_ref − μ_img) + α·( Σ t̂(+) − Σ t̂(−) ) + μ_img )
+```
+
+We subtract `μ_img` from `v_ref`, do the arithmetic in that centred space, then add `μ_img`
+back so the final query lands back inside the image cone (where the database lives, so cosine
+scores stay meaningful). Both subtractions are constants computed once from the cached
+tensors — no training, no per-query cost.
+
+*Why it works.* After centring, `α` spends its entire budget on the attribute-specific
+directions instead of on the constant "text-ness" offset. This is the single largest lever
+(see table): it is the same modality gap we already diagnosed in the α=0 vs α=1 analysis
+above, now corrected directly with one mean-subtraction.
+
+---
+
+**FIX 2 — delta normalization.** *Toggle:* `norm_delta`.
+
+*The problem.* The text term `Δ = Σ t̂(+) − Σ t̂(−)` is a **sum**, so its length grows with
+the number of constraints in the query. A 1-attribute query (`+Smiling`) produces a short
+`Δ`; a 3-attribute query (`+Wearing_Lipstick, −Heavy_Makeup, +Smiling`) produces a `Δ` that
+is up to ~3× longer. In `q = v_ref + α·Δ`, a longer `Δ` pushes the query *further* from
+`v_ref`. So with a single fixed `α`, every query gets a **different** effective push strength
+purely as a side effect of how many attributes it happens to mention — a 1-attribute query
+barely moves off `v_ref` while a 3-attribute query is yanked far away. `α` is supposed to be
+one global knob; instead it secretly means 14 different things.
+
+*The fix.* Separate **direction** from **magnitude**: normalize `Δ` to unit length first, so
+`α` controls only *how far* along that direction we move, identically for all queries.
+
+```
+d = normalize( Σ t̂(+) − Σ t̂(−) )      # pure direction, length 1 for every query
+q = normalize( v_ref + α·d )
+```
+
+*Why it works.* On the unit sphere, walking a fixed distance `α` from `v_ref` toward a
+unit direction `d` corresponds to a fixed **angle**. So after this fix `α` is a genuine,
+query-independent "how much to modify" angle. This makes a single global `α` (and any later
+α-sweep) coherent across the whole benchmark instead of a magnitude accident.
+
+---
+
+**FIX 3 — prompt ensembling.** *Toggle:* `use_prompt_bank`.
+
+*The problem.* A single sentence like *"a photo of a person with black hair"* gives a text
+vector that mixes the **concept** (black hair) with **phrasing noise** — quirks of that exact
+wording, sentence structure, and tokenization. One sentence is a noisy, off-centre estimate
+of the true "black hair" direction.
+
+*The fix.* Use the per-attribute **prompt bank** (the `[40, n, 512]` stack of n differently
+worded sentences per attribute, built for CLAY) and take the **mean** over its n paraphrases,
+then renormalize:
+
+```
+t_bank(a) = normalize( mean_k bank[a,k] )      # average of n paraphrases of attribute a
+```
+
+*Why it works.* The shared concept points the same way in every paraphrase so it **adds**
+coherently, while the per-phrasing noise points in random directions and partially
+**cancels** in the average. The result is a lower-variance, more on-concept attribute
+direction. (This is the standard CLIP "80-prompt-template" ensembling trick.) Note this keeps
+only the *centroid* of the paraphrases — it is **not** SVD, which keeps the spread; that
+distinction is exactly what separates this fix from Tier-1/CLAY.
+
+---
+
+**Order is load-bearing.** Apply FIX 3 then FIX 1: ensemble the paraphrases **first**, then
+subtract `μ_txt`. Averaging paraphrases reduces *phrasing* noise but does **not** remove the
+*common-mode* `μ_txt` offset (every paraphrase carries it, so it survives the average
+untouched). Only the explicit subtraction in FIX 1 removes it. This is why FIX 3 alone barely
+moves the needle while FIX 1 dominates (see below).
+
+Full ablation (α=1.0, all 14 queries). Each config writes its own
+`output/tier0_enhanced_{tag}.csv`:
+
+| Config | R@1 | R@5 | R@10 | ΔR@5 vs naive |
+|---|---|---|---|---|
+| naive (= `tier0.py`) | 0.0224 | 0.0699 | 0.1048 | — |
+| FIX 3 prompt-bank | 0.0243 | 0.0715 | 0.1050 | +0.0016 |
+| FIX 2 delta-normalize | 0.0242 | 0.0713 | 0.1083 | +0.0014 |
+| **FIX 1 modality-gap centering** | 0.0377 | **0.1142** | **0.1755** | **+0.0443** |
+| ALL three fixes | **0.0393** | 0.1102 | 0.1651 | +0.0403 |
+
+**Validation:** `fix3_bank`'s MEAN row is byte-identical to the prompt-bank ablation above
+(0.0243 / 0.0715 / 0.1050) — confirms the enhanced harness reproduces the prior run exactly.
+
+**What this shows (mechanism):**
+
+1. **Modality-gap centering is the entire win.** Alone it lifts R@5 0.070 → **0.114
+   (+63% rel.)**, R@10 0.105 → **0.176 (+67%)**, R@1 0.022 → 0.038 (+68%) — pure
+   mean-subtraction, no learning. This is the headline: the *dominant* error in naive
+   Tier-0 was adding the constant `μ_txt` text offset, exactly the modality gap diagnosed
+   in the α=0/α=1 analysis above.
+2. **FIX 2 and FIX 3 alone are noise-level** (+0.001 each) — as expected, they can't help
+   while the common-mode bias is still present.
+3. **The fixes are not additive.** `all_fixes` (R@5 0.110) sits just *below* FIX 1 alone
+   (0.114) at K=5/10, but takes the **best R@1 of any config (0.0393)**: stacking
+   delta-norm + ensembling on centering shifts mass toward the very top of the ranking at a
+   small cost deeper down. Centering is load-bearing; the other two trade R@5/@10 for R@1.
+
+**Status / report framing:** this does **not** replace the official `tier0_alpha1.0.csv`
+floor — it's a documented set of training-free ablations showing that *pure geometry nearly
+doubles* the Tier-0 R@5 floor, almost entirely via the Liang-2022 modality correction. It
+both raises the floor honestly **and sharpens the Tier-1/2 motivation**: the residual dead
+queries (`-Male, -Mustache` = 0.0000 under *every* config) are the **negation** problem,
+which centering provably cannot touch — that's precisely what Tier-2a's orthogonal rejection
+is for. Open lever (not yet run): with FIX 2 making α a true angle, α=1.0 is likely not
+optimal for the centered config — an α-sweep on `fix1_center` would find the real ceiling.
+
 ---
 
 ## Key decisions / notes
@@ -221,5 +384,10 @@ needs CLAY/Tier-2, not better prompts. (Driver currently a scratchpad script —
 - [x] Tier-0 baseline produced (`output/tier0_alpha1.0.csv`) and its low scores explained +
       verified (α=0 sanity check, well-formed image table, working self-retrieval).
 - [x] CLAY prerequisite: per-attribute prompt bank (`artifacts/clip_attr_prompt_bank.pt`).
+- [x] Enhanced Tier-0: three training-free geometry fixes (`src/tier0_enhanced.py`),
+      full ablation written to `output/tier0_enhanced_*.csv`. Modality-gap centering alone
+      lifts R@5 +63% rel. (0.070 → 0.114) — pure math, no learning.
 - [ ] (Optional, report only) α-sweep ablation curve for Tier-0 — characterization, not tuning.
+      Now most informative on the centered config (`fix1_center`): with the delta normalized,
+      α is a true angle, so α=1.0 is likely not its optimum.
 - [ ] Next (Tier-1): build CLAY subspace projectors from the prompt bank (SVD per attribute).
