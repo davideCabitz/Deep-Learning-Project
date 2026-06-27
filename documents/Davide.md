@@ -7,7 +7,7 @@ the experimental-setup and CLIP/CLAY background report sections.
 _(Note: I also built the evaluation engine below — nominally Member A's lane — since I
 had the spec fresh from writing the docs.)_
 
-_Last updated: 2026-06-26._
+_Last updated: 2026-06-27._
 
 ---
 
@@ -75,11 +75,31 @@ engine; `evaluate_tier0()` scores all 14 queries and writes a CSV
   that motivate Tier-2a rejection. Good baseline story for the report.
 - `alpha` is the identity↔modification dial (α-ablation knob).
 
+### Tier-1 CLAY reproduction — [src/tier1.py](../src/tier1.py)  ← Milestone M2 done
+**Faithful pure CLAY** — a *training-free method*, not a model: pure linear algebra on the frozen
+DB, so no Colab/GPU and nothing to export (it consumes `clip_image_features_test.pt` +
+`clip_attr_prompt_bank.pt` directly). Pipeline (CLAY.md §3.2): stack ALL condition prompts (+ and −
+alike — CLAY has no native negation) → `mu_c` = normalized mean → log-map onto the tangent space →
+SVD → top-k right singular vectors `V_k` → rotate visual mean to text mean with `H` (modality gap) →
+project DB once per query → cosine in the subspace. Plugs into the eval engine through the same
+`get_ranking(src)->ranking` seam (CONTRACT §7); per-query precompute, per-source one `[N,k]@[k]`.
+- **Numbers (k=50, +rotation):** MEAN R@1 0.0067, R@5 0.0227, **R@10 0.0351** — **below** Tier-0
+  (promptbank 0.024/0.072/0.105). This is the *expected, gradeable* result: faithful CLAY is a
+  focus/preserve similarity reframing with **no +/− arithmetic**, so it lags on these *modification*
+  queries — exactly the naïve-stacking bottleneck Tier-2a attacks. Best on high-frequency / preserve
+  attrs (`+Mustache` R@10 0.093, `+Smiling` 0.078); negation/composed collapse (`-Male, -Mustache`
+  0.000), same failure shape as Tier-0.
+- **Ablations (report rows, saved as `output/tier1_k{k}_{rot}.csv`):** k-sweep is monotonic
+  (k=5→10→20→50: R@10 0.016→0.022→0.035→0.035, plateaus by k≈20); rotation `H` helps
+  (norot R@10 0.0313 vs rotH 0.0351). These are the SVD-k and rotation-`H` ablations I own.
+- **Tests:** [test/test_tier1.py](../test/test_tier1.py) (new project-root `test/` folder — tests
+  live there, never inline in `src/`): 8 checks, all green (log/exp round-trip, rotation
+  orthogonality, subspace orthonormality/idempotence, k-clamping, padding strip, end-to-end ranking).
+
 ---
 
 ## In progress / next up (my lane — Member B)
-- [ ] **Tier-1** CLAY reproduction (tangent/log-map, SVD subspace, rotation `H`, naïve
-      multi-condition stacking).
+- [x] **Tier-1** CLAY reproduction — done (see above).
 - [ ] **Tier-2a** training-free +/− projection-rejection variant (the guaranteed contribution).
 - [ ] **Modality-gap analysis** (justifies the design choices).
 - [ ] **β knob / α-β sweep** — port a separate negative weight `β` into `tier0.py` (the old
