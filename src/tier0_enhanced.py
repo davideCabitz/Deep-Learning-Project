@@ -37,13 +37,11 @@ the same comparison as tier0_alpha1.0.csv and tier0_promptbank_alpha1.0.csv.
 Run:  python src/tier0_enhanced.py
 """
 
-import csv
-from pathlib import Path
-
 import torch
 
 from data_loader import ATTR_TO_IDX, _get_artifacts_dir
 from eval import parse_query, evaluate_all, format_results_table, load_eval_json, find_eval_json
+from results_io import save_results_csv, output_dir
 
 
 # ---------------------------------------------------------------------------
@@ -68,13 +66,6 @@ def load_attribute_text_features():
 def load_prompt_bank():
     # [40, n, 512] L2-normalized per-attribute prompt bank (bank[j] == attribute j stack).
     return torch.load(_get_artifacts_dir() / "clip_attr_prompt_bank.pt")
-
-
-def _output_dir():
-    # Project-root output/ folder for saved CSVs (created on demand).
-    out = Path(__file__).parent.parent / "output"
-    out.mkdir(exist_ok=True)
-    return out
 
 
 def build_attr_directions(use_prompt_bank=True, center=True):
@@ -159,29 +150,6 @@ def make_get_ranking(
     )
 
 
-def save_results_csv(results, path, ks=(1, 5, 10)):
-    # Persist evaluate_all() output: one row per query + a macro-MEAN row.
-    # Identical column layout to tier0.py so all tier0_*.csv files compare directly.
-    cols = ["query"] + [f"R@{k}" for k in ks] + [f"P@{k}" for k in ks] + ["num_sources"]
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(cols)
-        for query, res in results.items():
-            writer.writerow(
-                [query]
-                + [f"{res[f'recall@{k}']:.4f}" for k in ks]
-                + [f"{res[f'precision@{k}']:.4f}" for k in ks]
-                + [res["num_sources"]]
-            )
-        n = len(results)
-        mean_row = ["MEAN"]
-        for metric in [f"recall@{k}" for k in ks] + [f"precision@{k}" for k in ks]:
-            mean_row.append(f"{sum(r[metric] for r in results.values()) / n:.4f}")
-        mean_row.append("")
-        writer.writerow(mean_row)
-    print(f"  Saved: {path}")
-
-
 def evaluate_enhanced(
     alpha=1.0, beta=None, ks=(1, 5, 10), save=True, tag=None,
     use_prompt_bank=True, center=True, norm_delta=True,
@@ -210,7 +178,7 @@ def evaluate_enhanced(
     if save:
         if tag is None:
             tag = f"bank{int(use_prompt_bank)}_center{int(center)}_normdelta{int(norm_delta)}_alpha{alpha}"
-        save_results_csv(results, _output_dir() / f"tier0_enhanced_{tag}.csv", ks=ks)
+        save_results_csv(results, output_dir() / f"tier0_enhanced_{tag}.csv", ks=ks)
     return results
 
 
