@@ -26,7 +26,7 @@ from data_loader import ATTRIBUTE_NAMES
 from clip_features import load_image_features
 from clip_prompts import load_prompt_bank, build_prompts_for_attribute
 from eval import parse_query, evaluate_all, format_results_table, load_eval_json, find_eval_json
-from results_io import save_results_csv, output_dir
+from results_saver import save_results_csv, output_dir
 
 
 # ---------------------------------------------------------------------------
