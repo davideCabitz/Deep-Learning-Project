@@ -153,16 +153,35 @@ CLAY needs a *stack* of many same-meaning prompts per condition so SVD recovers 
 subspace (CLAY.md §3.2). With n=1 the stack is rank-1 and every CLAY accuracy lever
 (adaptive-k, all-but-the-top, σ-weighting) has nothing to operate on.
 
-- **Approach:** generate the n prompts from deterministic TEMPLATES (sentence FRAMES ×
-  per-attribute synonym phrases) instead of an LLM (CLAY uses ChatGPT-5). Reproducible,
-  from-scratch, course-policy compliant; the downstream geometry is identical — only the
-  *source* of the sentences differs. Stated as a methodology choice in the report.
+- **Approach:** generate the n prompts from deterministic TEMPLATES instead of an LLM (CLAY
+  uses ChatGPT-5). Reproducible, from-scratch, course-policy compliant; the downstream
+  geometry is identical — only the *source* of the sentences differs. Stated as a methodology
+  choice in the report. The templates are a **two-axis grid**:
+  - **Structural spread — sentence FRAMES.** 12 `{phrase}` frames varying subject wording and
+    structure (`"a photo of a person with {phrase}"`, `"a portrait of someone with {phrase}"`,
+    `"a selfie of someone with {phrase}"`, …). A parallel **`PREDICATIVE_FRAMES`** set (also 12)
+    handles adjective-style attributes that read better as `"a {phrase} person"` than
+    `"a person with {phrase}"` — flagged per attribute by an `"adj"` vs `"noun"` kind in
+    `ATTR_PHRASES`.
+  - **Lexical spread — per-attribute synonyms.** Each of the 40 attributes maps to **5**
+    plain, visually-concrete synonym phrases (e.g. `Black_Hair` → black / jet-black /
+    raven-black …). Phrases are kept deliberately plain — CLIP ViT-B/32 is a weak language
+    model, so concrete visual words beat clever paraphrase.
+
+  Cross frames × synonyms (12 × 5), de-dup, → **up to 60 prompts/attribute**. This is the
+  **saturation expansion** of this session: the bank grew from the original sparse stack to a
+  uniform, dense ~60-per-attribute grid so `T_c` has enough genuinely-varied rows that SVD
+  recovers a non-degenerate subspace (the under-saturation that motivated this was the prior
+  n-too-small state).
 - **Output artifact:** `artifacts/clip_attr_prompt_bank.pt`, shape `[40, n, 512]` float32,
-  each row L2-normalized, `bank[j]` == prompt stack for `ATTRIBUTE_NAMES[j]`. Padded to a
-  common n with duplicates of the first prompt (a repeated row adds no new SVD direction).
-- **Verified:** complete 40-attribute coverage (`_verify_coverage`), correct shape, n≥2,
-  unit-normalized rows. Run: `python src/clip_prompts.py` (also has a Colab notebook path,
-  since `transformers` isn't installed locally).
+  each row L2-normalized, `bank[j]` == prompt stack for `ATTRIBUTE_NAMES[j]`. `n` = the max
+  per-attribute prompt count; shorter stacks are **padded** to `n` with duplicates of the
+  attribute's first prompt (a repeated row adds no new SVD span direction — its singular value
+  folds into the existing one, so padding is geometry-safe).
+- **Verified:** exact 40-attribute coverage with no drift (`_verify_coverage` asserts
+  `ATTR_PHRASES` matches the master list both ways — no missing, no extra), correct shape,
+  n≥2, unit-normalized rows (`_verify`). Run: `python src/clip_prompts.py` (also has a Colab
+  notebook path, since `transformers` isn't installed locally).
 - **Note:** this `clip_attr_prompt_bank.pt` (the multi-prompt stack for CLAY) is distinct
   from `clip_attr_text_features.pt` (the single per-attribute vector Tier-0 uses).
 
