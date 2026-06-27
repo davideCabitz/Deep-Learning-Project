@@ -41,7 +41,7 @@ import torch
 
 from data_loader import ATTR_TO_IDX, _get_artifacts_dir
 from eval import parse_query, evaluate_all, format_results_table, load_eval_json, find_eval_json
-from results_io import save_results_csv, output_dir
+from results_saver import save_results_csv, output_dir
 
 
 # ---------------------------------------------------------------------------
