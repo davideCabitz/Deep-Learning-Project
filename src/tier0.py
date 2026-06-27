@@ -15,21 +15,12 @@ Plugs into the eval engine through the shared get_ranking callback (CONTRACT §5
 Run:  python src/tier0.py
 """
 
-import csv
-from pathlib import Path
-
 import torch
 
 from data_loader import ATTR_TO_IDX
 from clip_features import load_image_features, load_attribute_text_features
 from eval import parse_query, evaluate_all, format_results_table, load_eval_json, find_eval_json
-
-
-def _output_dir():
-    # Project-root output/ folder for saved CSVs (created on demand).
-    out = Path(__file__).parent.parent / "output"
-    out.mkdir(exist_ok=True)
-    return out
+from results_io import save_results_csv, output_dir
 
 
 def score(T_pos, T_neg, v_ref_idx, image_features, attr_text_features, alpha=1.0):
@@ -63,30 +54,6 @@ def make_get_ranking(query_str, image_features, attr_text_features, alpha=1.0):
     return lambda src_idx: score(T_pos, T_neg, src_idx, image_features, attr_text_features, alpha=alpha)
 
 
-def save_results_csv(results, path, ks=(1, 5, 10)):
-    # Persist evaluate_all() output: one row per query + a macro-MEAN row.
-    # Columns query, R@k…, P@k…, num_sources — shared layout so every
-    # tier0_*.csv compares directly.
-    cols = ["query"] + [f"R@{k}" for k in ks] + [f"P@{k}" for k in ks] + ["num_sources"]
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(cols)
-        for query, res in results.items():
-            writer.writerow(
-                [query]
-                + [f"{res[f'recall@{k}']:.4f}" for k in ks]
-                + [f"{res[f'precision@{k}']:.4f}" for k in ks]
-                + [res["num_sources"]]
-            )
-        n = len(results)        # macro-average: every query weighted equally
-        mean_row = ["MEAN"]
-        for metric in [f"recall@{k}" for k in ks] + [f"precision@{k}" for k in ks]:
-            mean_row.append(f"{sum(r[metric] for r in results.values()) / n:.4f}")
-        mean_row.append("")
-        writer.writerow(mean_row)
-    print(f"  Saved: {path}")
-
-
 def evaluate_tier0(alpha=1.0, ks=(1, 5, 10), save=True):
     # Run Tier-0 over the full benchmark: load tables, score, print table, save CSV.
     image_features = load_image_features()
@@ -101,7 +68,7 @@ def evaluate_tier0(alpha=1.0, ks=(1, 5, 10), save=True):
     print(format_results_table(results, ks=ks))
 
     if save:
-        save_results_csv(results, _output_dir() / f"tier0_alpha{alpha}.csv", ks=ks)
+        save_results_csv(results, output_dir() / f"tier0_alpha{alpha}.csv", ks=ks)
     return results
 
 
