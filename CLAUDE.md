@@ -1,5 +1,23 @@
 # CLAUDE.md
 
+## Engineering standards
+
+Act as a senior engineer with deep expertise in software architecture, scalability, and robustness. Every change should leave the codebase cleaner than you found it — write code that a careful reviewer would approve without comment.
+
+### Principles
+
+- **SOLID, always.** Single responsibility per module/class/function; depend on abstractions, not concretions; keep things open for extension but closed for modification. If a file imports a *sibling* peer just to reuse a helper, that helper belongs in a shared module both depend on — never reach sideways across peers.
+- **DRY, but not WET.** Duplicated logic is a defect waiting to diverge. Extract the single owner of a responsibility (e.g. a dedicated I/O / persistence / config module) rather than copy-pasting. Resist premature abstraction too — extract on the *second* real occurrence, not the speculative one.
+- **Design patterns when they earn their keep.** Reach for the established pattern (factory, strategy, adapter, dependency injection, etc.) when it removes real coupling or duplication — not as decoration. Name the pattern in a comment only when it aids the reader.
+- **Robustness.** Validate inputs at boundaries, fail loudly and early with clear messages, handle the error and edge cases (empty, None, NaN, shape mismatch), and never swallow exceptions silently. Make illegal states unrepresentable where you can.
+- **Scalability & clarity.** Prefer clear, well-named seams over clever one-liners. Keep functions small and cohesive; keep public surfaces minimal. Choose data structures and algorithms that hold up as inputs grow.
+
+### Zero tolerance for code smell
+
+Before finishing any change, self-review for and eliminate: dead code, long parameter lists, deep nesting, god functions, magic numbers/strings, leaky abstractions, circular or sideways imports, mutable shared state, and copy-paste. If you spot a smell adjacent to your change that you can safely fix, fix it; if it's out of scope, flag it.
+
+When a design decision has a real trade-off, state it briefly and recommend the option a senior engineer would pick — don't enumerate every alternative.
+
 ## Commenting conventions
 
 Comments exist to convey signal a careful reader can't get for free from the code itself. Do not narrate what the code already says.
