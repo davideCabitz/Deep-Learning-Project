@@ -26,7 +26,7 @@ from data_loader import ATTRIBUTE_NAMES
 from clip_features import load_image_features
 from clip_prompts import load_prompt_bank, build_prompts_for_attribute
 from eval import parse_query, evaluate_all, format_results_table, load_eval_json, find_eval_json
-from tier0 import save_results_csv, _output_dir
+from results_io import save_results_csv, output_dir
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +194,7 @@ def evaluate_tier1(k=50, use_rotation=True, ks=(1, 5, 10), save=True):
     print(format_results_table(results, ks=ks))
 
     if save:
-        save_results_csv(results, _output_dir() / f"tier1_k{k}_{rot}.csv", ks=ks)
+        save_results_csv(results, output_dir() / f"tier1_k{k}_{rot}.csv", ks=ks)
     return results
 
 
