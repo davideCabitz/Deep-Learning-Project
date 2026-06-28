@@ -5,9 +5,9 @@ celeba/
 celeba.zip
 *.zip
 
-# Cached CLIP features / tensors
-# artifacts/
-# *.pt
+# Cached CLIP features / tensors (large binaries — extract locally via Colab notebook)
+artifacts/
+*.pt
 
 # Notebook / Python cruft
 .ipynb_checkpoints/
