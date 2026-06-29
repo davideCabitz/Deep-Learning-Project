@@ -210,7 +210,7 @@ def test_ext_source_excluded_lde():
 
 def test_ext_alpha_one_matches_base_gde():
     # With α=1.0 and uniform directions, ext must produce the same ranking as base GDE.
-    from tier2a_visual import make_get_ranking as base_make_get_ranking
+    from tier1_GDE import make_get_ranking as base_make_get_ranking
 
     N, d = 100, 64
     mu   = _rand_unit(1, d, 42)[0]

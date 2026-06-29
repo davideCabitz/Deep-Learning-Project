@@ -1,5 +1,5 @@
 """
-Tier-2a Track V — Visual-Prototype Compositional Retrieval (GDE on CelebA).
+Tier-1 GDE — Visual-Prototype Compositional Retrieval (Berasi et al., GDE on CelebA).
 
 Mines per-attribute primitive directions as tangent means on S^{d-1} from the
 TRAIN split (no label leakage), then composes a query vector geodesically and
@@ -23,7 +23,7 @@ Ablation baseline: LDE (Linear Decomposable Embeddings, Trager et al. ICCV 2023)
 is the same pipeline with log/exp maps replaced by flat Euclidean arithmetic — an
 exact ablation of the spherical geometry.
 
-Run:  python src/tier2a_visual.py
+Run:  python src/tier1_GDE.py
 """
 
 import torch
@@ -215,25 +215,25 @@ def _run_evaluate(tag: str, use_gde: bool, ks=(1, 5, 10), save: bool = True) -> 
         return make_get_ranking(query_str, image_features, mu, directions, use_gde=use_gde)
 
     results = evaluate_all(gt_list, make, ks=ks)
-    print(f"\nTier-2a Visual ({tag}) — {len(gt_list)} queries\n")
+    print(f"\nTier-1 GDE ({tag}) — {len(gt_list)} queries\n")
     print(format_results_table(results, ks=ks))
 
     if save:
-        save_results_csv(results, output_subdir("tier2a_visual") / f"tier2a_visual_{tag}.csv", ks=ks)
+        save_results_csv(results, output_subdir("tier1_GDE") / f"tier1_GDE_{tag}.csv", ks=ks)
     return results
 
 
-def evaluate_tier2a_visual(ks=(1, 5, 10), save=True) -> dict:
-    # Tier-2a GDE — geodesic composition + rejection negation (the main method).
+def evaluate_tier1_GDE(ks=(1, 5, 10), save=True) -> dict:
+    # Tier-1 GDE — geodesic composition + rejection negation (the main method).
     return _run_evaluate("gde", use_gde=True, ks=ks, save=save)
 
 
-def evaluate_tier2a_visual_lde(ks=(1, 5, 10), save=True) -> dict:
-    # Tier-2a LDE ablation — flat arithmetic, no manifold geometry (Trager et al.).
+def evaluate_tier1_GDE_lde(ks=(1, 5, 10), save=True) -> dict:
+    # Tier-1 GDE LDE ablation — flat arithmetic, no manifold geometry (Trager et al.).
     # Establishes what the spherical geometry (GDE) buys over the Euclidean baseline.
     return _run_evaluate("lde", use_gde=False, ks=ks, save=save)
 
 
 if __name__ == "__main__":
-    evaluate_tier2a_visual()
-    evaluate_tier2a_visual_lde()
+    evaluate_tier1_GDE()
+    evaluate_tier1_GDE_lde()

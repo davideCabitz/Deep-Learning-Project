@@ -3,7 +3,7 @@ Riemannian primitives on the unit hypersphere S^{d-1}.
 
 All inputs are assumed L2-normalized (unit rows / unit vectors). No normalisation
 is enforced here — callers that pass non-unit vectors get geometrically wrong results.
-Used exclusively by tier2a_visual.py; tier1.py keeps its own _log_map to avoid a
+Used exclusively by tier1_GDE.py; tier1_CLAY.py keeps its own _log_map to avoid a
 sideways peer import (deliberate DRY trade-off, CLAUDE.md §imports).
 """
 
@@ -98,7 +98,7 @@ def tangent_mean(
 
 
 # ---------------------------------------------------------------------------
-# Rotation + subspace construction  (shared by tier1 and tier2a_S)
+# Rotation + subspace construction  (shared by tier1_CLAY and tier2a_S)
 # ---------------------------------------------------------------------------
 
 def align_rotation(a: torch.Tensor, b: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:

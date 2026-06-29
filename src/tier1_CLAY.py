@@ -17,7 +17,7 @@ notion of negation, so '+' and '−' attributes are treated as undifferentiated 
 a focus/preserve operation, not a query modification; the asymmetric +/− handling is Tier-2a's job.
 
 Plugs into the eval engine through the shared get_ranking callback (CONTRACT §5/§7).
-Run:  python src/tier1.py
+Run:  python src/tier1_CLAY.py
 """
 
 import torch
@@ -132,8 +132,8 @@ def score(T_pos, T_neg, v_ref_idx, image_features, prompt_bank, k=50, use_rotati
     return torch.argsort(scores, descending=True).tolist()
 
 
-def evaluate_tier1(k=50, use_rotation=True, ks=(1, 5, 10), save=True):
-    # Score Tier-1 (CLAY) on the full benchmark, print table, save CSV.
+def evaluate_tier1_CLAY(k=50, use_rotation=True, ks=(1, 5, 10), save=True):
+    # Score Tier-1 CLAY on the full benchmark, print table, save CSV.
     image_features = load_image_features()
     prompt_bank = load_prompt_bank()
     gt_list = load_eval_json(find_eval_json())
@@ -143,13 +143,14 @@ def evaluate_tier1(k=50, use_rotation=True, ks=(1, 5, 10), save=True):
 
     results = evaluate_all(gt_list, make, ks=ks)
     rot = "rotH" if use_rotation else "norot"
-    print(f"\nTier-1 (CLAY, k={k}, {rot}) - {len(gt_list)} queries\n")
+    print(f"\nTier-1 CLAY (k={k}, {rot}) - {len(gt_list)} queries\n")
     print(format_results_table(results, ks=ks))
 
     if save:
-        save_results_csv(results, output_subdir("tier1") / f"tier1_k{k}_{rot}.csv", ks=ks)
+        save_results_csv(results, output_subdir("tier1_CLAY") / f"tier1_CLAY_k{k}_{rot}.csv", ks=ks)
+
     return results
 
 
 if __name__ == "__main__":
-    evaluate_tier1()
+    evaluate_tier1_CLAY()

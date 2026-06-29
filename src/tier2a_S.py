@@ -1,7 +1,7 @@
 """
 Tier-2a Track S — Asymmetric Conditional Subspaces (approach "S").
 
-This is the **S** half of Tier-2a (the **V**/visual-prototype half lives in tier2a_visual.py).
+This is the **S** half of Tier-2a (the visual-prototype baseline lives in tier1_GDE.py).
 Track S fixes the failure that every earlier tier shares: negation queries (-Male, -Mustache)
 score 0.000, because CLIP cannot represent "not X" as a point on the sphere (SpaceVLM's
 impossibility theorem, S_plan.md §2.1). Track S represents each polarity as a *subspace* instead.

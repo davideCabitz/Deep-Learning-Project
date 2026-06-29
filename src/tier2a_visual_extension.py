@@ -1,7 +1,7 @@
 """
 Tier-2a Track V — Extended Visual-Prototype Compositional Retrieval.
 
-Extends tier2a_visual.py (GDE/LDE) with three training-free improvements,
+Extends tier1_GDE.py (GDE/LDE) with three training-free improvements,
 each independently togglable as an ablation axis:
 
   1. CLIP-weighted direction mining (GDE §3.3.1, Prop. 2) — replaces uniform
@@ -29,7 +29,7 @@ from clip_features import load_image_features, load_attribute_text_features
 from eval import parse_query, evaluate_all, format_results_table, load_eval_json, find_eval_json
 from results_saver import save_results_csv, output_subdir
 from manifold import log_map, exp_map, tangent_mean
-from tier2a_visual import (
+from tier1_GDE import (
     _load_train_features,
     _load_train_attributes,
     load_or_mine_directions,

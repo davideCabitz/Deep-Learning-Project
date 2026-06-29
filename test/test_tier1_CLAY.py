@@ -3,7 +3,7 @@ Tier-1 (CLAY) verification — kept out of src/ per project convention (tests li
 
 Cheap, self-contained checks of the manifold machinery and the retrieval seam. No CLIP, no real
 feature DB: the geometry is exercised on random unit vectors and a tiny synthetic corpus, so this
-runs in well under a second. Run:  python test/test_tier1.py   (or: pytest test/test_tier1.py)
+runs in well under a second. Run:  python test/test_tier1_CLAY.py   (or: pytest test/test_tier1_CLAY.py)
 """
 
 import sys
@@ -11,10 +11,10 @@ from pathlib import Path
 
 import torch
 
-# src/ uses bare imports (e.g. `from data_loader import ...`); put it on the path so we can import tier1.
+# src/ uses bare imports (e.g. `from data_loader import ...`); put it on the path so we can import tier1_CLAY.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from tier1 import _log_map, _align_rotation, _build_subspace, _stack_condition_prompts, make_get_ranking
+from tier1_CLAY import _log_map, _align_rotation, _build_subspace, _stack_condition_prompts, make_get_ranking
 from clip_prompts import build_prompts_for_attribute
 from data_loader import ATTRIBUTE_NAMES
 

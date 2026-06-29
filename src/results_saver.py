@@ -4,7 +4,7 @@ results_io — single owner of evaluation-result persistence (shared seam).
 Every tier produces the same evaluate_all() dict and must write the same CSV layout so
 output/*.csv files compare row-for-row. That responsibility lives here ONCE: tiers depend
 on this module, never on each other. Pulling it out of tier0.py removes the DRY-violating
-copies in tier0/tier0_enhanced and the sideways `from tier0 import …` coupling in tier1.
+copies in tier0/tier0_enhanced and the sideways `from tier0 import …` coupling in tier1_CLAY.
 """
 
 import csv

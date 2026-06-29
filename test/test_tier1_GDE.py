@@ -1,10 +1,10 @@
 """
-Tier-2a Visual (GDE + LDE ablation) verification.
+Tier-1 GDE (GDE + LDE ablation) verification.
 
-Cheap, self-contained checks of manifold.py and tier2a_visual.py on synthetic
+Cheap, self-contained checks of manifold.py and tier1_GDE.py on synthetic
 random unit vectors — no CLIP, no real feature DB, no disk I/O. Runs in < 1 s.
 
-Run:  python test/test_tier2a_visual.py   (or: pytest test/test_tier2a_visual.py)
+Run:  python test/test_tier1_GDE.py   (or: pytest test/test_tier1_GDE.py)
 """
 
 import sys
@@ -16,7 +16,7 @@ import torch.nn.functional as F
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from manifold import log_map, exp_map, intrinsic_mean, tangent_mean
-from tier2a_visual import (
+from tier1_GDE import (
     _compose_query_gde,
     _compose_query_lde,
     make_get_ranking,
@@ -127,7 +127,7 @@ def test_tangent_mean_orthogonal_to_mu():
 
 
 # ---------------------------------------------------------------------------
-# tier2a_visual.py — composition
+# tier1_GDE.py — composition
 # ---------------------------------------------------------------------------
 
 def _make_synthetic_directions(mu: torch.Tensor, d: int, seed: int) -> torch.Tensor:
@@ -186,7 +186,7 @@ def test_negation_reduces_attribute_component():
 
 
 # ---------------------------------------------------------------------------
-# tier2a_visual.py — retrieval seam (CONTRACT §5/§7)
+# tier1_GDE.py — retrieval seam (CONTRACT §5/§7)
 # ---------------------------------------------------------------------------
 
 def test_ranking_is_full_permutation_gde():
@@ -263,7 +263,7 @@ def _run_all():
     for t in tests:
         t()
         print(f"  [OK] {t.__name__}")
-    print(f"[OK] all {len(tests)} Tier-2a Visual tests passed")
+    print(f"[OK] all {len(tests)} Tier-1 GDE tests passed")
 
 
 if __name__ == "__main__":
