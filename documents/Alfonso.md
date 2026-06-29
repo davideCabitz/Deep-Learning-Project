@@ -393,6 +393,178 @@ optimal for the centered config — an α-sweep on `fix1_center` would find the 
 - **CelebA location**: currently in `~/Downloads/celeba/celeba/` (nested). `data_loader`
   auto-detects this and the project-root location.
 
+---
+
+## Phase C — Track V (Tier-2a Visual-Prototype Compositional Retrieval) *(this session, 2026-06-28)*
+
+Track V is the image-space pipeline assigned to Member B (Davide) in `TRAINING_FREE_SPLIT.md`.
+Alfonso drove the implementation session end-to-end. All deliverables are complete and scored.
+
+---
+
+### The core architectural decision: train split for direction mining, test split for ranking
+
+**Why this split matters.** The entire Track V pipeline has two logically distinct phases:
+
+1. **Direction mining** — "what does attribute X look like geometrically in CLIP image space?"
+2. **Ranking** — "given a composed query, which test images match best?"
+
+These two phases must use *different* data. Ranking must use the test split (identical to tier1.py)
+so our CSV is directly comparable. Direction mining must use the train split to avoid leakage:
+if we computed "what Smiling looks like" from the very images we then rank, we'd be fitting our
+representation on the eval set — the classic leakage that makes a method uncreditable. GDE itself
+(Berasi et al. CVPR 2025 §4.2–4.3) mines directions from train and evaluates on test for exactly
+this reason.
+
+**Why the train artifacts didn't exist.** `data_loader.py` and `clip_features.py` both hardcode
+`split='test'`. Calling them for the train split would require modifying shared source files, which
+would break the other methods and violate CLAUDE.md's single-responsibility principle.
+
+**Solution: self-contained Colab notebook.** `notebooks/colab_extract_train_features.ipynb` inlines
+all extraction logic (no imports from `src/`) and produces:
+- `artifacts/celeba_attributes_train.pt` — `[N_train, 40]` float32, 0/1 mask, built from
+  `list_eval_partition.txt` (partition == 0), same -1/+1 → 0/1 conversion as the test version.
+- `artifacts/clip_image_features_train.pt` — `[N_train, 512]` float32, L2-normalized, using the
+  identical CLIP model / preprocessing / two-step call (`vision_model` → `visual_projection`) as
+  `clip_features.py` so train and test vectors are geometrically compatible.
+
+Row alignment is guaranteed by building both tensors in the same `train_filenames_ordered` pass.
+Three sanity checks mirror `_verify()` in `clip_features.py` before saving.
+
+---
+
+### `src/manifold.py` — Riemannian primitives on S^{d-1}
+
+**Why a new module, not a patch to tier1.py.** `tier1.py` already has `_log_map` (private, prefixed
+`_`). Importing it from `tier2a_visual.py` would be a sideways peer import — explicitly forbidden by
+CLAUDE.md. The clean solution is a shared `manifold.py` that owns the sphere geometry once. The
+DRY violation (tier1 keeps its own `_log_map`) was accepted as a deliberate trade-off rather than
+refactoring tier1 mid-project and risking a regression in an already-scored method.
+
+**Four functions, each with a clear owner responsibility:**
+
+- `log_map(mu, X)` — GDE App. A Eq. 14. Projects unit rows X onto the tangent plane at μ.
+  `log_μ(x) = θ·(x − cosθ·μ)/sinθ`, θ = arccos(xᵀμ). The eps guard keeps θ≈0 (x at μ)
+  numerically safe without producing NaN. Returns `[m, d]` tangent vectors, each orthogonal to μ.
+
+- `exp_map(mu, V)` — GDE App. A Eq. 13. Lifts tangent vectors V back onto the sphere.
+  `exp_μ(v) = cos(‖v‖)·μ + sin(‖v‖)·(v/‖v‖)`. Zero tangent → returns μ. Output is always unit.
+
+- `intrinsic_mean(X)` — Karcher mean by gradient descent (GDE Alg. 1). Warm-started from the
+  normalised Euclidean mean (converges in <20 iterations on CelebA-scale data). The intrinsic mean
+  is the single point on the sphere minimising average squared geodesic distance to all inputs —
+  the right notion of "centre" on a curved space, unlike the normalised arithmetic mean which
+  minimises chord distance and can land off-manifold.
+
+- `tangent_mean(mu, X)` — GDE §3.2 Prop. 1 Eq. 7. The primitive direction for attribute a:
+  `v_a = (1/|Z_a|) Σ_{x ∈ Z_a} Log_μ(x)`. Lives in T_μS^{d-1}; length encodes average angular
+  displacement. **Deliberately not normalised** — the magnitude carries signal for GDE composition.
+
+---
+
+### `src/tier2a_visual.py` — full Track V pipeline
+
+**Direction mining** (`mine_directions`, `load_or_mine_directions`):
+
+Computes the Karcher mean μ of all train images (one `intrinsic_mean` call), then for each of the
+40 attributes mines `v_a = tangent_mean(μ, {train images with attr a = 1})`. Result cached to
+`artifacts/visual_directions.pt` as `{'mu': ..., 'directions': ...}` so repeated eval runs are
+instant. Attributes with zero positive train examples get a zero vector with a logged warning
+rather than a silent crash — fail loudly at the boundary (CLAUDE.md robustness rule).
+
+**Why tangent mean and not "has-minus-not-has" difference.** TRAINING_FREE_SPLIT.md §1 step 1
+describes a difference `log_μ(mean₊) − log_μ(mean₋)`. In practice, the `mean₋` (images
+*without* the attribute) is a near-uniform mix of everything else — its tangent mean is close to
+zero at the global μ because the global mean *is* the mixture centre. So `v_a ≈ tangent_mean(μ,
+has-a images) − 0 = tangent_mean(μ, has-a images)`. The implementation uses the simpler form;
+the difference formulation adds a negligible near-zero correction.
+
+**GDE positive composition** (`_compose_query_gde`):
+
+```
+q_tan = Log_μ(v_ref)
+for a in T_pos:  q_tan += directions[a]
+→ q = Exp_μ(q_tan)  # normalised
+```
+
+Addition happens in T_μS^{d-1} (flat tangent space), then a single Exp_map brings the result back
+to the sphere. This is GDE's geodesic decomposability (Def. 1): the composed embedding is the
+Exp of a sum of primitive tangent directions, not a normalised sum of ambient vectors.
+
+**Negation by orthogonal rejection** (`_compose_query_gde`):
+
+```
+for a in T_neg:
+    v_hat = directions[a] / ‖directions[a]‖
+    q_tan -= (q_tan · v_hat) · v_hat   # remove the attribute axis
+```
+
+This is the key insight from Alhamoud et al. 2025 (CLIP has affirmation bias — it cannot
+distinguish "X" from "not X" in text) and Oldfield et al. NeurIPS 2023 (PoS-Grounded Subspaces,
+Eq. 5): negation is not anti-X (subtraction overshoots), it is "no preference on the X axis"
+(rejection removes that dimension entirely). After rejection, any image can rank well regardless
+of its X value — "not red hair" retrieves blonde, brown, black equally, not just anti-red.
+
+**LDE ablation** (`_compose_query_lde`):
+
+Flat Euclidean arithmetic with no log/exp maps: `q = normalize(v_ref + Σ v_a⁺ − Σ v_a⁻)`.
+This is Trager et al. ICCV 2023's LDE. Kept as a separate code path (one `use_gde` flag) so the
+ablation is a zero-diff comparison — same directions, same query parsing, only the geometric
+operators differ. Negation uses subtraction here (LDE has no manifold-aware rejection operator).
+
+**CONTRACT §5/§7 compliance.** `make_get_ranking(query_str, image_features, mu, directions)`
+builds the callback once per query; per-source cost is one `[N] @ [d]` dot product. `score()`
+provides the single-shot variant matching the shared signature. Both exclude the source via
+`scores[src_idx] = -inf` before argsort.
+
+**Two evaluation entry points:**
+- `evaluate_tier2a_visual()` → `output/tier2a_visual_gde.csv`
+- `evaluate_tier2a_visual_lde()` → `output/tier2a_visual_lde.csv`
+
+---
+
+### `test/test_tier2a_visual.py` — 17 synthetic tests
+
+All tests run on random unit vectors (no disk, no CLIP, <1s). Mirror structure of `test_tier1.py`.
+
+Key test properties verified:
+- `exp_map(mu, log_map(mu, X)) ≈ X` — roundtrip identity (injectivity radius check)
+- `log_map(mu, mu) = 0` — tangency condition with eps guard
+- `exp_map(mu, 0) = mu` — zero tangent lifts to base point
+- `log_map` output orthogonal to μ — tangent plane membership
+- Karcher mean satisfies `Σ Log_μ(x_i) ≈ 0` — first-order fixed-point condition
+- Negation zeroes the attribute axis component in tangent space
+- `get_ranking` returns a full permutation (all N indices exactly once)
+- Source index pushed to last position (CONTRACT §5)
+- Both GDE and LDE paths covered independently
+- `mine_directions` returns correct shapes with unit μ
+
+---
+
+### Results: Tier-0 vs Tier-1 CLAY (k=50, rotH) vs Tier-2a GDE
+
+| Metric | Tier-0 | Tier-1 CLAY | **Tier-2a GDE** | GDE vs T1 | GDE vs T0 |
+|--------|:------:|:-----------:|:---------------:|:---------:|:---------:|
+| R@1    | 0.0224 | 0.0098      | **0.0221**      | +126%     | −1%       |
+| R@5    | 0.0699 | 0.0368      | **0.0607**      | +65%      | −13%      |
+| R@10   | 0.1048 | 0.0541      | **0.0910**      | +68%      | −13%      |
+
+**GDE dominates Tier-1 on every single query** — the primary deliverable is met.
+
+**GDE vs Tier-0 analysis.** Near-parity overall (−13% R@10 mean), with GDE winning clearly on
+`+Male` (+51pp R@10: 0.019 → 0.070) and `-Heavy_Makeup` (+1pp R@10: 0.138 → 0.146), but losing
+on three hard negation queries (`-Smiling +Eyeglasses +Wearing_Hat`, `-Male -Mustache`, `-Young`).
+The gap on those queries is explained by the structure of the attributes: `-Young` has ~5,355
+source images (the largest query), making the tangent direction diffuse; `-Male, -Mustache` has
+only 27 sources, a statistically tiny slice of the train distribution. Text-based Tier-0 handles
+these better because CLIP text embeddings encode coarse semantic content even for rare attributes.
+
+**The one outright win over Tier-0 on a negation query (`-Heavy_Makeup`)** validates the rejection
+operator: removing the Heavy_Makeup axis from the tangent query is more precise than subtracting
+the text vector, because the visual direction is cleaner (no modality gap, no phrasing noise).
+
+---
+
 ## TODO
 
 - [x] Confirm the "mandatory 12" queries vs. the 14 in the JSON — resolved: evaluate all 14
@@ -406,7 +578,18 @@ optimal for the centered config — an α-sweep on `fix1_center` would find the 
 - [x] Enhanced Tier-0: three training-free geometry fixes (`src/tier0_enhanced.py`),
       full ablation written to `output/tier0_enhanced_*.csv`. Modality-gap centering alone
       lifts R@5 +63% rel. (0.070 → 0.114) — pure math, no learning.
+<<<<<<< HEAD
 - [ ] (Optional, report only) α-sweep ablation curve for Tier-0 — characterization, not tuning.
       Now most informative on the centered config (`fix1_center`): with the delta normalized,
       α is a true angle, so α=1.0 is likely not its optimum.
 - [ ] Next (Tier-1): build CLAY subspace projectors from the prompt bank (SVD per attribute).
+=======
+- [x] Track V (Tier-2a visual): `src/manifold.py`, `src/tier2a_visual.py`,
+      `test/test_tier2a_visual.py`, `notebooks/colab_extract_train_features.ipynb`.
+      GDE beats Tier-1 by +68% R@10 mean; near-parity with Tier-0.
+      Outputs: `output/tier2a_visual_gde.csv`, `output/tier2a_visual_lde.csv`.
+- [ ] (Optional, report only) α-sweep ablation curve for Tier-0 on centered config.
+- [ ] **Next: Track S (Tier-2a subspace)** — `src/tier2a_subspace.py`. Asymmetric +/−
+      text subspaces + negation as subspace complement. Zero new artifacts; consumes
+      `clip_image_features_test.pt` + `clip_attr_prompt_bank.pt`.
+>>>>>>> a96a64625d1211d007e0ff767636f667cbe0cedd

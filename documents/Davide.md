@@ -7,7 +7,11 @@ the experimental-setup and CLIP/CLAY background report sections.
 _(Note: I also built the evaluation engine below — nominally Member A's lane — since I
 had the spec fresh from writing the docs.)_
 
+<<<<<<< HEAD
 _Last updated: 2026-06-29._
+=======
+_Last updated: 2026-06-27._
+>>>>>>> a96a64625d1211d007e0ff767636f667cbe0cedd
 
 ---
 
@@ -96,6 +100,7 @@ project DB once per query → cosine in the subspace. Plugs into the eval engine
   live there, never inline in `src/`): 8 checks, all green (log/exp round-trip, rotation
   orthogonality, subspace orthonormality/idempotence, k-clamping, padding strip, end-to-end ranking).
 
+<<<<<<< HEAD
 ### Tier-2a Track S — Asymmetric Conditional Subspaces — [src/tier2a_S.py](../src/tier2a_S.py)  ← my Tier-2a contribution
 The training-free **S** approach (named `tier2a_S` to distinguish it from Alfonso's visual-prototype
 **V** approach, [tier2a_visual.py](../src/tier2a_visual.py)). Implemented from [S_plan.md](S_plan.md).
@@ -136,12 +141,18 @@ seam (CONTRACT §7); precompute-per-query, batched scoring over all of a query's
   S⁺ orthonormality, P⁺ idempotence, S⁻ complement orthogonality, neg-norm non-negativity, end-to-end
   ranking, empty-T⁺ and empty-T⁻ fallbacks, stacked variant).
 
+=======
+>>>>>>> a96a64625d1211d007e0ff767636f667cbe0cedd
 ---
 
 ## In progress / next up (my lane — Member B)
 - [x] **Tier-1** CLAY reproduction — done (see above).
+<<<<<<< HEAD
 - [x] **Tier-2a Track S** training-free asymmetric-subspace +/− variant — done (see above); beats CLAY
       ~2×, trails Tier-0. Next iteration: modification-style positive term to clear the Tier-0 bar.
+=======
+- [ ] **Tier-2a** training-free +/− projection-rejection variant (the guaranteed contribution).
+>>>>>>> a96a64625d1211d007e0ff767636f667cbe0cedd
 - [ ] **Modality-gap analysis** (justifies the design choices).
 - [ ] **β knob / α-β sweep** — port a separate negative weight `β` into `tier0.py` (the old
       [methods.py](../src/methods.py) had it; that file is otherwise superseded by `tier0.py`),

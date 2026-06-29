@@ -18,6 +18,7 @@ def output_dir():
     return out
 
 
+<<<<<<< HEAD
 def output_subdir(name):
     # A named subfolder of output/ (created on demand) so a method's many ablation CSVs
     # group under one folder instead of scattering across the shared output/ root.
@@ -26,6 +27,8 @@ def output_subdir(name):
     return sub
 
 
+=======
+>>>>>>> a96a64625d1211d007e0ff767636f667cbe0cedd
 def save_results_csv(results, path, ks=(1, 5, 10)):
     # Persist evaluate_all() output: one row per query + a macro-MEAN row.
     # Columns query, R@k…, P@k…, num_sources — the one canonical layout so every
