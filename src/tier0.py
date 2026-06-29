@@ -17,10 +17,19 @@ Run:  python src/tier0.py
 
 import torch
 
-from data_loader import ATTR_TO_IDX
-from clip_features import load_image_features, load_attribute_text_features
+from data_loader import ATTR_TO_IDX, _get_artifacts_dir
 from eval import parse_query, evaluate_all, format_results_table, load_eval_json, find_eval_json
 from results_saver import save_results_csv, output_dir
+
+
+def load_image_features():
+    # [N, 512] L2-normalized CLIP image table (artifacts/clip_image_features_test.pt).
+    return torch.load(_get_artifacts_dir() / "clip_image_features_test.pt")
+
+
+def load_attribute_text_features():
+    # [40, 512] L2-normalized single-prompt attribute table (row j == attribute j).
+    return torch.load(_get_artifacts_dir() / "clip_attr_text_features.pt")
 
 
 def score(T_pos, T_neg, v_ref_idx, image_features, attr_text_features, alpha=1.0):

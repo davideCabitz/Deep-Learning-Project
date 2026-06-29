@@ -26,30 +26,16 @@ from data_loader import ATTRIBUTE_NAMES
 from clip_features import load_image_features
 from clip_prompts import load_prompt_bank, build_prompts_for_attribute
 from eval import parse_query, evaluate_all, format_results_table, load_eval_json, find_eval_json
-from results_saver import save_results_csv, output_dir
-<<<<<<< HEAD
-# Closed-form hypersphere geometry lives in the shared manifold module (both Tier-1 and Track S
-# depend on it — no peer-to-peer reuse). Aliased to the legacy private names this file already uses.
-from manifold import log_map as _log_map, align_rotation as _align_rotation, build_subspace as _build_subspace
-=======
+from results_saver import save_results_csv, output_subdir
 
 
 # ---------------------------------------------------------------------------
 # Manifold math — closed forms on the unit hypersphere (GDE.md App. A.1)
 # ---------------------------------------------------------------------------
 def _log_map(mu, X, eps=1e-6):
-    """Logarithmic map of sphere points X onto the tangent space at mu (GDE.md eq. 14 / CLAY.md eq. 3).
-
-    log_mu(x) = theta · (x − mu·(xᵀmu)) / sin(theta), theta = arccos(xᵀmu): sends each unit row of
-    X to the tangent vector at mu whose length equals the geodesic (angular) distance. Points at the
-    tangency (theta≈0) map to 0; the eps guard keeps the 0/0 there numerically safe.
-
-    Args:
-        mu : [d] unit tangent point.
-        X  : [m, d] unit rows on the sphere.
-    Returns:
-        [m, d] tangent vectors (each orthogonal to mu).
-    """
+    # Log map — log_μ(x) = θ·(x − cosθ·μ)/sinθ, θ = arccos(xᵀμ). Sends unit rows of X
+    # to tangent vectors at μ whose length equals the geodesic distance (GDE eq. 14 / CLAY eq. 3).
+    # Points at tangency (θ≈0) map to 0; eps guard prevents 0/0. Args: mu [d], X [m,d] → [m,d].
     dots = (X @ mu).clamp(-1.0, 1.0)                  # cos(theta) per row
     theta = torch.arccos(dots)
     tangent = X - dots.unsqueeze(1) * mu              # component of x orthogonal to mu, ‖·‖ = sin(theta)
@@ -59,17 +45,9 @@ def _log_map(mu, X, eps=1e-6):
 
 
 def _align_rotation(a, b, eps=1e-6):
-    """Minimal rotation matrix H sending unit a → unit b, identity on span{a,b}^⊥ (CLAY.md §3.2).
-
-    Rotates only within the 2-D plane spanned by the two means, so it aligns the visual mean to the
-    text mean (closing the modality gap / conic effect) WITHOUT disturbing the intra-DB relationships
-    the similarity depends on. Returns I when a and b already (anti)coincide.
-
-    Args:
-        a, b : [d] unit vectors.
-    Returns:
-        [d, d] rotation matrix H with H @ a ≈ b.
-    """
+    # Minimal rotation H: a → b, identity on span{a,b}^⊥ (CLAY.md §3.2).
+    # Closes the modality gap by rotating the visual mean onto the text mean without
+    # disturbing intra-DB relationships. Returns I when a and b already (anti)coincide.
     d = a.shape[0]
     I = torch.eye(d, dtype=a.dtype)
     c = float(a @ b)
@@ -82,23 +60,15 @@ def _align_rotation(a, b, eps=1e-6):
     P = torch.outer(a, a) + torch.outer(u2, u2)       # projector onto the plane
     R = c * torch.outer(a, a) + s * torch.outer(u2, a) - s * torch.outer(a, u2) + c * torch.outer(u2, u2)
     return I - P + R
->>>>>>> a96a64625d1211d007e0ff767636f667cbe0cedd
 
 
 # ---------------------------------------------------------------------------
 # Subspace construction + DB projection
 # ---------------------------------------------------------------------------
 def _stack_condition_prompts(T_pos, T_neg, prompt_bank):
-    """Stack every condition's (unpadded) prompt vectors into one matrix T_c (CLAY's naïve pre-SVD stack).
-
-    The cached bank is padded to a common width with duplicate rows; the true per-attribute count
-    comes from build_prompts_for_attribute() (deterministic, no CLIP), so we slice off the padding —
-    duplicate rows would skew mu_c and the singular values. Positives and negatives are merged here:
-    pure CLAY draws no +/− distinction.
-
-    Returns:
-        [m, d] unit rows, m = Σ_attr (#prompts for that attr).
-    """
+    # Stack condition prompts into T_c [m, d] — CLAY's naïve pre-SVD merge (no +/− split).
+    # Slices the true per-attribute count to strip padding (duplicate rows skew mu_c and SVD).
+    # m = Σ_attr (#true prompts for that attr); positives and negatives merged — that's Tier-1's limit.
     rows = []
     for name in T_pos + T_neg:
         j = ATTRIBUTE_NAMES.index(name)
@@ -107,18 +77,9 @@ def _stack_condition_prompts(T_pos, T_neg, prompt_bank):
     return torch.cat(rows, dim=0)
 
 
-<<<<<<< HEAD
-=======
 def _build_subspace(T_c, k):
-    """Manifold-aware textual subspace: tangent point mu_c + top-k right singular vectors V_k.
-
-    mu_c = normalized mean of the condition texts; SVD on their log-mapped (tangent) images yields the
-    directions of greatest spread → span(V_k) is the conditional similarity subspace (CLAY.md §3.2).
-    k is clamped to the stack height m (with m few prompts the paper's k=50 is unreachable).
-
-    Returns:
-        (mu_c [d], V_k [d, k_eff]).
-    """
+    # Manifold-aware textual subspace — mu_c = normalize(mean(T_c)); SVD on log_{mu_c}(T_c) → V_k.
+    # span(V_k) is the conditional similarity subspace (CLAY.md §3.2). k clamped to stack height.
     mu_c = torch.nn.functional.normalize(T_c.mean(dim=0), dim=0)
     L = _log_map(mu_c, T_c)
     # full_matrices=False → Vh is [min(m,d), d]; rows of Vh are the right singular vectors.
@@ -128,17 +89,10 @@ def _build_subspace(T_c, k):
     return mu_c, V_k
 
 
->>>>>>> a96a64625d1211d007e0ff767636f667cbe0cedd
 def _project_db(image_features, mu_c, V_k, use_rotation=True):
-    """Project the whole frozen DB into the conditional subspace: D = normalize_rows( log_{mu_c}(H·v) · V_k ).
-
-    Computed ONCE per query (it never depends on the source). Each row is L2-normalized so a later dot
-    product is the cosine CLAY scores with; the reference is simply row src of D (it lives in the same
-    corpus). H aligns the visual mean to the text mean unless the rotation ablation is off.
-
-    Returns:
-        [N, k_eff] unit-normalized subspace coordinates.
-    """
+    # Project frozen DB into the conditional subspace: D = normalize( log_{mu_c}(H·v) · V_k ).
+    # Computed once per query; rows are L2-normalized so dot product == cosine. H closes the
+    # modality gap (rotation ablation toggle); reference is just row src of D.
     V = image_features
     if use_rotation:
         mu_vd = torch.nn.functional.normalize(image_features.mean(dim=0), dim=0)
@@ -152,12 +106,8 @@ def _project_db(image_features, mu_c, V_k, use_rotation=True):
 # Retrieval — the shared score / get_ranking seam (CONTRACT §7)
 # ---------------------------------------------------------------------------
 def make_get_ranking(query_str, image_features, prompt_bank, k=50, use_rotation=True):
-    """Build the get_ranking(src_idx) → ranking callback, precomputing the per-query subspace once.
-
-    mu_c, V_k, H and the projected DB depend only on the query, so they are built here and reused for
-    every source of that query (mirrors tier0.make_get_ranking); per-source cost is one [N,k]@[k]
-    cosine. This is the efficient path the eval engine calls.
-    """
+    # Build get_ranking(src_idx) → ranking, precomputing the subspace once per query.
+    # Per-source cost is one [N,k]@[k] dot product — subspace (mu_c, V_k, D) is shared.
     T_pos, T_neg = parse_query(query_str)
     T_c = _stack_condition_prompts(T_pos, T_neg, prompt_bank)
     mu_c, V_k = _build_subspace(T_c, k)
@@ -172,14 +122,8 @@ def make_get_ranking(query_str, image_features, prompt_bank, k=50, use_rotation=
 
 
 def score(T_pos, T_neg, v_ref_idx, image_features, prompt_bank, k=50, use_rotation=True):
-    """Rank the corpus for one (query, source) pair via CLAY — CONTRACT §7-parity single-shot wrapper.
-
-    Convenience entry matching the shared score(...) shape; builds the subspace then ranks once. For
-    full-benchmark scoring prefer make_get_ranking (it reuses the subspace across a query's sources).
-
-    Returns:
-        ranking : list[int], best-first, source excluded (CONTRACT §5).
-    """
+    # Single-shot scorer — CONTRACT §7 parity. Prefer make_get_ranking for full-benchmark
+    # runs (it reuses the subspace across all sources of a query).
     T_c = _stack_condition_prompts(T_pos, T_neg, prompt_bank)
     mu_c, V_k = _build_subspace(T_c, k)
     D = _project_db(image_features, mu_c, V_k, use_rotation=use_rotation)
@@ -189,7 +133,7 @@ def score(T_pos, T_neg, v_ref_idx, image_features, prompt_bank, k=50, use_rotati
 
 
 def evaluate_tier1(k=50, use_rotation=True, ks=(1, 5, 10), save=True):
-    """Score Tier-1 (CLAY) on the full evaluation benchmark, print the table, and save CSV."""
+    # Score Tier-1 (CLAY) on the full benchmark, print table, save CSV.
     image_features = load_image_features()
     prompt_bank = load_prompt_bank()
     gt_list = load_eval_json(find_eval_json())
@@ -203,7 +147,7 @@ def evaluate_tier1(k=50, use_rotation=True, ks=(1, 5, 10), save=True):
     print(format_results_table(results, ks=ks))
 
     if save:
-        save_results_csv(results, output_dir() / f"tier1_k{k}_{rot}.csv", ks=ks)
+        save_results_csv(results, output_subdir("tier1") / f"tier1_k{k}_{rot}.csv", ks=ks)
     return results
 
 

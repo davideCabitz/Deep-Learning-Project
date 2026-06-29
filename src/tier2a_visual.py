@@ -33,7 +33,7 @@ from pathlib import Path
 from data_loader import ATTRIBUTE_NAMES, ATTR_TO_IDX, _get_artifacts_dir
 from clip_features import load_image_features
 from eval import parse_query, evaluate_all, format_results_table, load_eval_json, find_eval_json
-from results_saver import save_results_csv, output_dir
+from results_saver import save_results_csv, output_subdir
 from manifold import log_map, exp_map, intrinsic_mean, tangent_mean
 
 
@@ -149,7 +149,7 @@ def _compose_query_gde(
         v_hat = v_a / v_a_norm
         q_tan = q_tan - (q_tan @ v_hat) * v_hat          # orthogonal rejection
 
-    return F.normalize(exp_map(mu.unsqueeze(0), q_tan.unsqueeze(0)).squeeze(0), dim=0)
+    return F.normalize(exp_map(mu, q_tan.unsqueeze(0)).squeeze(0), dim=0)
 
 
 def _compose_query_lde(
@@ -201,28 +201,6 @@ def make_get_ranking(
     return get_ranking
 
 
-def score(
-    T_pos: list[str],
-    T_neg: list[str],
-    v_ref_idx: int,
-    image_features: torch.Tensor,
-    attributes: torch.Tensor,          # unused — kept for CONTRACT §7 signature parity
-    mu: torch.Tensor | None = None,
-    directions: torch.Tensor | None = None,
-    use_gde: bool = True,
-    **kwargs,
-) -> list[int]:
-    # Single-shot scorer matching CONTRACT §7 signature.
-    # Loads directions lazily if not supplied (convenient for one-off calls).
-    if mu is None or directions is None:
-        mu, directions = load_or_mine_directions()
-    get_ranking = make_get_ranking(
-        "+".join(T_pos) if T_pos else "",   # reconstruct a query string
-        image_features, mu, directions, use_gde=use_gde,
-    )
-    return get_ranking(v_ref_idx)
-
-
 # ---------------------------------------------------------------------------
 # Evaluation entry points
 # ---------------------------------------------------------------------------
@@ -241,7 +219,7 @@ def _run_evaluate(tag: str, use_gde: bool, ks=(1, 5, 10), save: bool = True) -> 
     print(format_results_table(results, ks=ks))
 
     if save:
-        save_results_csv(results, output_dir() / f"tier2a_visual_{tag}.csv", ks=ks)
+        save_results_csv(results, output_subdir("tier2a_visual") / f"tier2a_visual_{tag}.csv", ks=ks)
     return results
 
 
