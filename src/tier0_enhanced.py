@@ -41,7 +41,7 @@ import torch
 
 from data_loader import ATTR_TO_IDX, _get_artifacts_dir
 from eval import parse_query, evaluate_all, format_results_table, load_eval_json, find_eval_json
-from results_saver import save_results_csv, output_dir
+from results_saver import save_results_csv, output_subdir
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +178,7 @@ def evaluate_enhanced(
     if save:
         if tag is None:
             tag = f"bank{int(use_prompt_bank)}_center{int(center)}_normdelta{int(norm_delta)}_alpha{alpha}"
-        save_results_csv(results, output_dir() / f"tier0_enhanced_{tag}.csv", ks=ks)
+        save_results_csv(results, output_subdir("tier0_enhanced") / f"tier0_enhanced_{tag}.csv", ks=ks)
     return results
 
 

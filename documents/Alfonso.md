@@ -565,6 +565,131 @@ the text vector, because the visual direction is cleaner (no modality gap, no ph
 
 ---
 
+## Phase C — Track V Extension (`src/tier2a_visual_extension.py`) *(2026-06-29)*
+
+### Why we extended Track V
+
+The base GDE (`tier2a_visual.py`) left three levers on the table that the theory explicitly calls out
+but the implementation never used:
+
+1. **Uniform direction weights (GDE §3.3.1, Prop. 2).** `mine_directions` averages every train image
+   with the same weight `1/k`. GDE specifically addresses this: a training image of "Smiling" also
+   contains hair, background, lighting — information not in the concept. The paper proposes weighting
+   each image by `P(image | "a photo of {attribute}")` — the CLIP image-text softmax — so images that
+   strongly match the attribute's text prompt contribute more and incidental noise contributes less.
+   `clip_attr_text_features.pt` was already on disk; no new extraction was needed.
+
+2. **Fixed push strength α=1 (GDE §4.5).** The base method adds every positive direction with
+   implicit weight α=1. GDE describes α as an explicit "push strength knob." There is no reason to
+   believe α=1 is optimal; an α-sweep is a legitimate training-free ablation.
+
+3. **Sequential scalar rejection for multi-attribute negation (PoS-Subspaces §2.2, Eq. 5).** The base
+   method applies `q_tan -= (q_tan · v̂_a) · v̂_a` one attribute at a time. This is order-dependent:
+   the second rejection operates on a tangent vector already modified by the first, and the two
+   attribute axes are not necessarily orthogonal in CLIP space (`Male` and `Mustache` are strongly
+   correlated). The geometrically correct solution is to project onto the orthogonal complement of the
+   full multi-attribute subspace in one step, via thin QR on the stacked directions.
+
+### What was built (`src/tier2a_visual_extension.py`)
+
+A self-contained extension module that imports the frozen base (`tier2a_visual.py`) and adds:
+
+- **`_compute_clip_weights(train_features, text_features)`** — `[N_train, 40]` softmax weight matrix.
+  `w[i, a] = softmax(train_features[i] @ text_features.T)[a]`. Pure matrix multiply + softmax; zero
+  new disk I/O.
+
+- **`mine_weighted_directions(train_features, train_attributes, mu)`** — calls the existing
+  `tangent_mean(mu, X_a, weights=w_a)` (the `weights` argument was already wired in `manifold.py`
+  but had never been used). Shares `mu` with the uniform variant so both live in the same tangent
+  frame — a clean ablation, no confound.
+
+- **`load_or_mine_weighted_directions()`** — caches to `artifacts/visual_directions_weighted.pt`
+  (separate key from `visual_directions.pt`; both coexist on disk).
+
+- **`_compose_query_ext(v_ref, T_pos, T_neg, mu, directions, alpha)`** — extends the GDE composition
+  with two changes:
+  - Positive directions are scaled by `alpha` before adding: `q_tan += alpha · v_a`.
+  - Negation: stacks unit directions for all negated attributes into `W [k, d]`, orthogonalises via
+    thin QR (`torch.linalg.qr(W.T) → Q [d, k]`), then projects in one step:
+    `q_tan = q_tan − Q(Qᵀq_tan)`. This is `Π⊥` from PoS-Subspaces §2.2, Eq. 5, applied in tangent
+    space — order-independent and numerically stable.
+
+- **Five evaluation entry points**, each writing to `output/tier2a_visual_ext/`:
+  - `gde_alpha0.5`, `gde_alpha1.0`, `gde_alpha1.5` — isolates the α lever (uniform directions)
+  - `gde_weighted` — isolates CLIP-weighted directions (α=1.0)
+  - `lde_weighted` — flat geometry + weighted directions (ablation confirming geometry matters)
+
+### Results
+
+Full ablation grid (MEAN over 14 queries):
+
+| Variant | R@1 | R@5 | R@10 | ΔR@5 vs base GDE |
+|---|:---:|:---:|:----:|:----------------:|
+| Base GDE (α=1.0, uniform) | 0.0221 | 0.0607 | 0.0910 | — |
+| Base LDE (uniform) | 0.0224 | 0.0617 | 0.0943 | +0.0010 |
+| **GDE α=0.5** | 0.0208 | 0.0551 | 0.0805 | −0.0056 |
+| GDE α=1.0 (ext, uniform) | 0.0221 | 0.0607 | 0.0910 | 0.0000 ✓ |
+| **GDE α=1.5** | **0.0248** | **0.0724** | **0.1085** | **+0.0117 (+19%)** |
+| GDE weighted (α=1.0) | 0.0220 | 0.0608 | 0.0910 | +0.0001 |
+| LDE weighted | 0.0224 | 0.0617 | 0.0943 | +0.0010 |
+
+### Interpreting the results
+
+**α=1.0 ext reproduces base GDE exactly (✓ validation).** The extension with α=1.0 and uniform
+directions produces bit-for-bit identical MEAN scores to `tier2a_visual_gde.csv`. This confirms the
+refactoring introduced no regression.
+
+**α=1.5 is the clear winner (+19% R@5).** Increasing the push strength lifts almost every
+positive-attribute query. The gains are largest where the attribute direction is discriminative:
+`+Male` R@10 0.0702 → 0.1586, `+Blond_Hair` R@10 0.1322 → 0.1690, `+Eyeglasses` R@10
+0.1020 → 0.1293, `+Smiling` R@10 0.2305 → 0.2380. The hard negation-only queries (`-Young`,
+`-Male -Mustache`) are unaffected — they are fundamentally limited by the quality of the direction,
+not the push strength. `-Smiling, +Eyeglasses, +Wearing_Hat` at α=1.5 first gains a non-zero R@5
+(0.0253) — the stronger push helps the two positive attributes dominate.
+
+**α=0.5 hurts.** Under-pushing keeps the query too close to `v_ref` and loses the attribute
+information; retrieval collapses toward pure image–image similarity, which was already diagnosed as
+insufficient at α=0 in Phase B.
+
+**CLIP-weighted directions bring negligible gain (+0.0001 R@5).** This is surprising given GDE's
+strong claims for denoising. The likely explanation: CelebA training images are relatively clean,
+well-lit face crops — the "incidental noise" problem GDE was designed for (arbitrary UT-Zappos shoe
+photos in varied contexts) is much milder here. The softmax weights end up nearly uniform because
+every has-a training image genuinely looks like the attribute, so the weighted mean is almost the
+same as the uniform mean. The lever exists but the data doesn't create a gap for it to exploit.
+
+**LDE weighted ≈ LDE uniform.** The same reasoning applies: the weighting doesn't change the
+direction much when the data is clean. The LDE vs GDE gap (LDE consistently slightly above GDE at
+the mean level on this benchmark) is a known artefact: LDE's flat subtraction for negation can
+sometimes accidentally push in a useful direction, while GDE's principled rejection is more
+conservative. For the specific hard negation queries that motivated the whole track (`-Male,
+-Mustache`), both methods still produce 0.000 — the direction for `Mustache` has only 27 source
+images, not enough signal regardless of weighting or geometry.
+
+**Joint QR negation vs sequential rejection.** For single-negation queries the two are identical.
+For multi-negation queries (`-Male, -Mustache`; `-Smiling, +Eyeglasses, +Wearing_Hat`;
+`+Wearing_Lipstick, -Heavy_Makeup, +Smiling`) the scores are identical to the base GDE — confirming
+the QR is geometrically correct (same subspace) and the 0.000 wall on hard queries is a direction
+quality problem, not an operator problem.
+
+**Best overall variant: GDE α=1.5** (MEAN R@1=0.0248, R@5=0.0724, R@10=0.1085). This beats
+Tier-0's vanilla baseline on R@5 (0.0699) and comes within 3% of the enhanced Tier-0 R@5 (0.0743,
+FIX 2 + FIX 3 config), while being trained on a completely different modality (images only, no text
+arithmetic). It also surpasses Tier-1 CLAY on every metric by a wide margin.
+
+### `test/test_tier2a_visual_ext.py` — 14 synthetic tests
+
+All run in < 1 s on random unit vectors. Key invariants verified:
+- CLIP weights are non-negative, shape-correct, and sum to 1 per row
+- α=1.0 ext produces identical ranking to base GDE (regression guard)
+- Higher α moves the query further from `v_ref` (direction check)
+- Single negation zeroes the negated axis in tangent space (< 1e-4)
+- Joint QR negation zeroes both axes simultaneously (multi-attribute check)
+- Joint negation is order-independent (the key property sequential rejection lacks)
+- Full permutation + source exclusion on both GDE and LDE paths
+
+---
+
 ## TODO
 
 - [x] Confirm the "mandatory 12" queries vs. the 14 in the JSON — resolved: evaluate all 14
@@ -578,18 +703,14 @@ the text vector, because the visual direction is cleaner (no modality gap, no ph
 - [x] Enhanced Tier-0: three training-free geometry fixes (`src/tier0_enhanced.py`),
       full ablation written to `output/tier0_enhanced_*.csv`. Modality-gap centering alone
       lifts R@5 +63% rel. (0.070 → 0.114) — pure math, no learning.
-<<<<<<< HEAD
-- [ ] (Optional, report only) α-sweep ablation curve for Tier-0 — characterization, not tuning.
-      Now most informative on the centered config (`fix1_center`): with the delta normalized,
-      α is a true angle, so α=1.0 is likely not its optimum.
-- [ ] Next (Tier-1): build CLAY subspace projectors from the prompt bank (SVD per attribute).
-=======
 - [x] Track V (Tier-2a visual): `src/manifold.py`, `src/tier2a_visual.py`,
       `test/test_tier2a_visual.py`, `notebooks/colab_extract_train_features.ipynb`.
       GDE beats Tier-1 by +68% R@10 mean; near-parity with Tier-0.
-      Outputs: `output/tier2a_visual_gde.csv`, `output/tier2a_visual_lde.csv`.
+      Outputs: `output/tier2a_visual/tier2a_visual_gde.csv`, `output/tier2a_visual/tier2a_visual_lde.csv`.
+- [x] Track V Extension: `src/tier2a_visual_extension.py`, `test/test_tier2a_visual_ext.py`.
+      CLIP-weighted directions + α sweep + joint QR negation. Best variant: α=1.5, MEAN R@5=0.0724 (+19% vs base GDE).
+      Outputs: `output/tier2a_visual_ext/`.
 - [ ] (Optional, report only) α-sweep ablation curve for Tier-0 on centered config.
 - [ ] **Next: Track S (Tier-2a subspace)** — `src/tier2a_subspace.py`. Asymmetric +/−
       text subspaces + negation as subspace complement. Zero new artifacts; consumes
       `clip_image_features_test.pt` + `clip_attr_prompt_bank.pt`.
->>>>>>> a96a64625d1211d007e0ff767636f667cbe0cedd

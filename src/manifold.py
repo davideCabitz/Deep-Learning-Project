@@ -31,8 +31,10 @@ def log_map(mu: torch.Tensor, X: torch.Tensor, eps: float = 1e-6) -> torch.Tenso
 def exp_map(mu: torch.Tensor, V: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
     # Exp map — lifts tangent vectors V at μ back onto the sphere.
     # exp_μ(v) = cos(‖v‖)·μ + sin(‖v‖)·(v/‖v‖).
-    # Zero tangent vectors map back to μ (the eps guard keeps v/‖v‖ safe).
+    # Projects V onto T_μS first (removes any μ-component) so the formula holds
+    # even when callers pass slightly non-tangent vectors (numerical drift).
     # Args: mu [d] unit vector; V [m, d] tangent vectors.  Returns [m, d] unit rows.
+    V = V - (V @ mu).unsqueeze(1) * mu         # project onto tangent plane at μ
     norms = V.norm(dim=1, keepdim=True)        # ‖v‖ per row  [m, 1]
     v_hat = torch.where(norms > eps, V / norms, torch.zeros_like(V))
     return torch.cos(norms) * mu + torch.sin(norms) * v_hat   # [m, d]
@@ -66,7 +68,7 @@ def intrinsic_mean(
         grad = (weights.unsqueeze(1) * logs).sum(dim=0)   # [d] weighted tangent mean
         if grad.norm() < eps:
             break
-        mu = F.normalize(exp_map(mu.unsqueeze(0), (lr * grad).unsqueeze(0)).squeeze(0), dim=0)
+        mu = F.normalize(exp_map(mu, (lr * grad).unsqueeze(0)).squeeze(0), dim=0)
 
     return mu                                  # [d] unit vector
 

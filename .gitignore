@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 .env
 
@@ -13,3 +14,44 @@ artifacts/
 .ipynb_checkpoints/
 __pycache__/
 *.pyc
+=======
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# PyTorch artifacts (large binary tensors — extracted in Colab, not committed)
+artifacts/*.pt
+
+# Dataset (never commit raw images or attribute files)
+celeba/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / env
+.env
+*.env
+>>>>>>> 76a6805d5fb14858c904c3a94d367b1b53664043

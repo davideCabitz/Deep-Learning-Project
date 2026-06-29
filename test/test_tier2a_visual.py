@@ -218,7 +218,7 @@ def test_ranking_is_full_permutation_lde():
     mu   = _rand_unit(1, d, 30)[0]
     feats = _rand_unit(N, d, 31)
     dirs  = _make_synthetic_directions(mu, d, 32)
-    get_ranking = make_get_ranking("+Smiling -Bald", feats, mu, dirs, use_gde=False)
+    get_ranking = make_get_ranking("+Smiling, -Bald", feats, mu, dirs, use_gde=False)
     ranking = get_ranking(7)
     assert sorted(ranking) == list(range(N))
 
