@@ -1,23 +1,26 @@
 """
-Tier-2a Track V — Extended Visual-Prototype Compositional Retrieval.
+Tier-2b — Visual-Prototype Composition (GDE).
 
-Extends tier1_GDE.py (GDE/LDE) with three training-free improvements,
-each independently togglable as an ablation axis:
+Mines per-attribute **primitive directions** in *image* space (no modality gap, no phrasing noise;
+concept directions in the lineage of CAVs, Kim et al., 2018) and composes the query geodesically.
+Crucially, directions are mined from the **train** split and ranking is on the **test** split —
+no leakage (GDE mines directions from train and evaluates on test for exactly this reason).
 
-  1. CLIP-weighted direction mining (GDE §3.3.1, Prop. 2) — replaces uniform
-     tangent means with per-image weights w_i = softmax(f_i @ T.T)[a], so
-     images strongly matching attribute a's text prompt contribute more.
-     Requires no new Colab extraction: clip_attr_text_features.pt already exists.
+**Mining (train).** Karcher mean `mu` of all train images, then `v_a = tangent_mean(mu, {x : has a})`.
 
-  2. Configurable push strength α (GDE §4.5) — scales every positive direction
-     before geodesic addition: q_tan += α·v_a. α=1.0 reproduces the base method.
+**Composition (test).**
+    q_tan = log_mu(v_ref) + Sum_{a in T+} v_a;  for b in T-: q_tan -= (q_tan*v_b_hat)*v_b_hat;  q = exp_mu(q_tan)
 
-  3. Joint subspace negation (PoS-Subspaces §2.2, Eq. 5) — for multi-attribute
-     negation, builds W = stack(v̂_a for a∈T_neg) and projects onto its orthogonal
-     complement in one step via W⁺ (pseudoinverse), instead of sequential scalar
-     rejections which are order-dependent and don't orthogonalise the axes.
+Negation is **orthogonal rejection**, not subtraction: it removes the attribute axis entirely
+("not red hair" -> blonde/brown/black all acceptable), avoiding the "anti-X" overshoot
+(Alhamoud et al., 2025; Oldfield et al., 2023). **Ablation:** *LDE* (Trager et al., 2023) — the
+same pipeline with flat Euclidean arithmetic and subtraction-negation — isolates what the
+spherical geometry buys.
 
-Run:  python src/tier2a_visual_extension.py
+Includes CLIP-weighted direction mining and configurable push strength alpha as independent toggles.
+Plugs into the eval engine through the shared get_ranking callback (CONTRACT §5/§7); reuses
+frozen hypersphere primitives from manifold.py. CSVs land in output/tier2b/ — one per config.
+Run:  python src/tier2b.py
 """
 
 import torch
@@ -220,7 +223,7 @@ def _run_evaluate_ext(
     print(format_results_table(results, ks=ks))
 
     if save:
-        save_results_csv(results, output_subdir("tier2a_visual_ext") / f"tier2a_visual_ext_{tag}.csv", ks=ks)
+        save_results_csv(results, output_subdir("tier2b") / f"tier2b_{tag}.csv", ks=ks)
     return results
 
 

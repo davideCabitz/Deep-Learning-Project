@@ -16,7 +16,7 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from manifold import log_map, exp_map, build_subspace
-from tier2a_S import TrackSConfig, _project_db_into_subspace, make_get_ranking
+from tier2a import TrackSConfig, _project_db_into_subspace, make_get_ranking
 from clip_prompts import build_prompts_for_attribute
 from data_loader import ATTRIBUTE_NAMES
 

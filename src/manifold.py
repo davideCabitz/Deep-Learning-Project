@@ -98,7 +98,7 @@ def tangent_mean(
 
 
 # ---------------------------------------------------------------------------
-# Rotation + subspace construction  (shared by tier1_CLAY and tier2a_S)
+# Rotation + subspace construction  (shared by tier1_CLAY, tier2a, tier2b, tier2c)
 # ---------------------------------------------------------------------------
 
 def align_rotation(a: torch.Tensor, b: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:

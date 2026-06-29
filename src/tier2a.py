@@ -1,38 +1,23 @@
 """
-Tier-2a Track S — Asymmetric Conditional Subspaces (approach "S").
+Tier-2a — Asymmetric Conditional Subspaces.
 
-This is the **S** half of Tier-2a (the visual-prototype baseline lives in tier1_GDE.py).
-Track S fixes the failure that every earlier tier shares: negation queries (-Male, -Mustache)
-score 0.000, because CLIP cannot represent "not X" as a point on the sphere (SpaceVLM's
-impossibility theorem, S_plan.md §2.1). Track S represents each polarity as a *subspace* instead.
+Fixes the failure every earlier tier shares: negation queries (-Male, -Mustache) score 0.000,
+because CLIP cannot represent "not X" as a point on the sphere (SpaceVLM's impossibility theorem).
+Tier-2a represents each polarity as a *subspace* instead, scored asymmetrically:
 
     For each positive attribute a:  S⁺_a = PGA subspace of a's prompt stack   (the "near A" region)
     For each negative attribute b:  S⁻_b = PGA subspace of b's prompt stack   (the "far from N" region)
     score(src, d) = cos(v_src, v_d)  +  mean_a cos_{S⁺_a}(v_d, v_src)  −  λ · Σ_b ‖proj_{S⁻_b}(v_d)‖
 
-The mean_a term is CLAY's manifold-aware conditional similarity (S_plan.md §3, Stage 6), but
-restricted to POSITIVE-only subspaces so negative-attribute directions can't contaminate it. The
-Σ_b term is the genuinely new piece: an asymmetric negation PENALTY — energy inside a negative
-subspace means the image looks like the thing we want absent, so it is pushed down. "Not Male"
-becomes "low energy in the Male subspace" — a whole region of the sphere, exactly what the geometry
-calls for, not a single anti-Male point.
+The identity anchor (leading cosine) preserves reference identity while the positive and negative
+subspaces impose constraints. Polarity-split stacks (one SVD per attribute) ensure no attribute with
+more prompts dominates. Per-condition subspaces follow PoS-grounded philosophy; per-polarity stacking
+is an ablation toggle. The λ·‖proj_{S⁻}‖ negation penalty is the asymmetric negation: energy inside
+a negative subspace means "looks like the thing we want absent", so it is pushed down.
 
-The leading cos(v_src, v_d) is the IDENTITY ANCHOR. Every benchmark query is "an image *like the
-reference*, with +X, without −X", so the reference is the affirmative "near" region SpaceVLM's d̂
-centres on — in composition that region is "near v_src", not a text point. Without it, pure-subspace
-scoring discards reference identity (reproducing CLAY's sub-Tier-0 result, S_plan.md §0.3) and a
-negation-only query degenerates to a reference-independent ranking (identical for every source →
-R@5 0.000). The anchor is on by default; toggle it off (identity_anchor=False) to recover the
-plan-literal two-term formula as an ablation.
-
-Departures from Tier-1 (faithful CLAY): (1) polarity-SPLIT stacks — separate SVDs per polarity, not
-one merged subspace; (2) the λ·‖proj_{S⁻}‖ negation penalty CLAY lacks entirely; (3) the headline
-variant builds ONE subspace per condition (PoS-Subspaces' per-role philosophy) so no attribute with
-more prompts dominates — stacked-per-polarity is kept as an ablation toggle.
-
-Plugs into the eval engine through the shared get_ranking callback (CONTRACT §5/§7); reuses the
-frozen hypersphere primitives from manifold.py. CSVs land in output/tier2a_S/ — one per config.
-Run:  python src/tier2a_S.py
+Plugs into the eval engine through the shared get_ranking callback (CONTRACT §5/§7); reuses
+frozen hypersphere primitives from manifold.py. CSVs land in output/tier2a/ — one per config.
+Run:  python src/tier2a.py
 """
 
 from dataclasses import dataclass
@@ -243,7 +228,7 @@ def evaluate_tier2a_s(config=TrackSConfig(), ks=(1, 5, 10), save=True):
     print(format_results_table(results, ks=ks))
 
     if save:
-        save_results_csv(results, output_subdir("tier2a_S") / f"tier2a_S_{config.tag()}.csv", ks=ks)
+        save_results_csv(results, output_subdir("tier2a") / f"tier2a_{config.tag()}.csv", ks=ks)
     return results
 
 
@@ -269,7 +254,7 @@ def run_ablation(ks=(1, 5, 10)):
         results = _evaluate(config, image_features, prompt_bank, gt_list, ks)
         print(f"\nTier-2a Track S ({config.tag()}) - {len(gt_list)} queries\n")
         print(format_results_table(results, ks=ks))
-        save_results_csv(results, output_subdir("tier2a_S") / f"tier2a_S_{config.tag()}.csv", ks=ks)
+        save_results_csv(results, output_subdir("tier2a") / f"tier2a_{config.tag()}.csv", ks=ks)
 
 
 if __name__ == "__main__":

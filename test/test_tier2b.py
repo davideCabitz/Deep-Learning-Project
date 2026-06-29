@@ -17,7 +17,7 @@ import torch.nn.functional as F
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from manifold import log_map
-from tier2a_visual_extension import (
+from tier2b import (
     _compute_clip_weights,
     _compose_query_ext,
     make_get_ranking_ext,
