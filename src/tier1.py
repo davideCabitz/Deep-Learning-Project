@@ -27,11 +27,6 @@ from clip_features import load_image_features
 from clip_prompts import load_prompt_bank, build_prompts_for_attribute
 from eval import parse_query, evaluate_all, format_results_table, load_eval_json, find_eval_json
 from results_saver import save_results_csv, output_dir
-<<<<<<< HEAD
-# Closed-form hypersphere geometry lives in the shared manifold module (both Tier-1 and Track S
-# depend on it — no peer-to-peer reuse). Aliased to the legacy private names this file already uses.
-from manifold import log_map as _log_map, align_rotation as _align_rotation, build_subspace as _build_subspace
-=======
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +77,6 @@ def _align_rotation(a, b, eps=1e-6):
     P = torch.outer(a, a) + torch.outer(u2, u2)       # projector onto the plane
     R = c * torch.outer(a, a) + s * torch.outer(u2, a) - s * torch.outer(a, u2) + c * torch.outer(u2, u2)
     return I - P + R
->>>>>>> a96a64625d1211d007e0ff767636f667cbe0cedd
 
 
 # ---------------------------------------------------------------------------
@@ -107,8 +101,6 @@ def _stack_condition_prompts(T_pos, T_neg, prompt_bank):
     return torch.cat(rows, dim=0)
 
 
-<<<<<<< HEAD
-=======
 def _build_subspace(T_c, k):
     """Manifold-aware textual subspace: tangent point mu_c + top-k right singular vectors V_k.
 
@@ -128,7 +120,6 @@ def _build_subspace(T_c, k):
     return mu_c, V_k
 
 
->>>>>>> a96a64625d1211d007e0ff767636f667cbe0cedd
 def _project_db(image_features, mu_c, V_k, use_rotation=True):
     """Project the whole frozen DB into the conditional subspace: D = normalize_rows( log_{mu_c}(H·v) · V_k ).
 

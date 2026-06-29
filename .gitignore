@@ -1,0 +1,15 @@
+
+.env
+
+celeba/
+celeba.zip
+*.zip
+
+
+artifacts/
+*.pt
+
+
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
