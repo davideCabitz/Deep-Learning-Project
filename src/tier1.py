@@ -27,56 +27,9 @@ from clip_features import load_image_features
 from clip_prompts import load_prompt_bank, build_prompts_for_attribute
 from eval import parse_query, evaluate_all, format_results_table, load_eval_json, find_eval_json
 from results_saver import save_results_csv, output_dir
-
-
-# ---------------------------------------------------------------------------
-# Manifold math — closed forms on the unit hypersphere (GDE.md App. A.1)
-# ---------------------------------------------------------------------------
-def _log_map(mu, X, eps=1e-6):
-    """Logarithmic map of sphere points X onto the tangent space at mu (GDE.md eq. 14 / CLAY.md eq. 3).
-
-    log_mu(x) = theta · (x − mu·(xᵀmu)) / sin(theta), theta = arccos(xᵀmu): sends each unit row of
-    X to the tangent vector at mu whose length equals the geodesic (angular) distance. Points at the
-    tangency (theta≈0) map to 0; the eps guard keeps the 0/0 there numerically safe.
-
-    Args:
-        mu : [d] unit tangent point.
-        X  : [m, d] unit rows on the sphere.
-    Returns:
-        [m, d] tangent vectors (each orthogonal to mu).
-    """
-    dots = (X @ mu).clamp(-1.0, 1.0)                  # cos(theta) per row
-    theta = torch.arccos(dots)
-    tangent = X - dots.unsqueeze(1) * mu              # component of x orthogonal to mu, ‖·‖ = sin(theta)
-    norms = tangent.norm(dim=1, keepdim=True)
-    scale = torch.where(norms > eps, theta.unsqueeze(1) / norms, torch.zeros_like(norms))
-    return tangent * scale
-
-
-def _align_rotation(a, b, eps=1e-6):
-    """Minimal rotation matrix H sending unit a → unit b, identity on span{a,b}^⊥ (CLAY.md §3.2).
-
-    Rotates only within the 2-D plane spanned by the two means, so it aligns the visual mean to the
-    text mean (closing the modality gap / conic effect) WITHOUT disturbing the intra-DB relationships
-    the similarity depends on. Returns I when a and b already (anti)coincide.
-
-    Args:
-        a, b : [d] unit vectors.
-    Returns:
-        [d, d] rotation matrix H with H @ a ≈ b.
-    """
-    d = a.shape[0]
-    I = torch.eye(d, dtype=a.dtype)
-    c = float(a @ b)
-    u2 = b - c * a                                    # part of b orthogonal to a
-    s = u2.norm()
-    if s < eps:                                       # parallel/antiparallel → nothing to rotate
-        return I
-    u2 = u2 / s
-    # In the orthonormal plane basis (a, u2): a=(1,0)→(c,s), u2=(0,1)→(−s,c). Off-plane left untouched.
-    P = torch.outer(a, a) + torch.outer(u2, u2)       # projector onto the plane
-    R = c * torch.outer(a, a) + s * torch.outer(u2, a) - s * torch.outer(a, u2) + c * torch.outer(u2, u2)
-    return I - P + R
+# Closed-form hypersphere geometry lives in the shared manifold module (both Tier-1 and Track S
+# depend on it — no peer-to-peer reuse). Aliased to the legacy private names this file already uses.
+from manifold import log_map as _log_map, align_rotation as _align_rotation, build_subspace as _build_subspace
 
 
 # ---------------------------------------------------------------------------
@@ -99,25 +52,6 @@ def _stack_condition_prompts(T_pos, T_neg, prompt_bank):
         n_j = len(build_prompts_for_attribute(name))
         rows.append(prompt_bank[j, :n_j])
     return torch.cat(rows, dim=0)
-
-
-def _build_subspace(T_c, k):
-    """Manifold-aware textual subspace: tangent point mu_c + top-k right singular vectors V_k.
-
-    mu_c = normalized mean of the condition texts; SVD on their log-mapped (tangent) images yields the
-    directions of greatest spread → span(V_k) is the conditional similarity subspace (CLAY.md §3.2).
-    k is clamped to the stack height m (with m few prompts the paper's k=50 is unreachable).
-
-    Returns:
-        (mu_c [d], V_k [d, k_eff]).
-    """
-    mu_c = torch.nn.functional.normalize(T_c.mean(dim=0), dim=0)
-    L = _log_map(mu_c, T_c)
-    # full_matrices=False → Vh is [min(m,d), d]; rows of Vh are the right singular vectors.
-    _, _, Vh = torch.linalg.svd(L, full_matrices=False)
-    k_eff = min(k, Vh.shape[0])
-    V_k = Vh[:k_eff].T                                # [d, k_eff]
-    return mu_c, V_k
 
 
 def _project_db(image_features, mu_c, V_k, use_rotation=True):

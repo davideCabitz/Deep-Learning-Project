@@ -7,7 +7,7 @@ the experimental-setup and CLIP/CLAY background report sections.
 _(Note: I also built the evaluation engine below — nominally Member A's lane — since I
 had the spec fresh from writing the docs.)_
 
-_Last updated: 2026-06-27._
+_Last updated: 2026-06-29._
 
 ---
 
@@ -96,11 +96,52 @@ project DB once per query → cosine in the subspace. Plugs into the eval engine
   live there, never inline in `src/`): 8 checks, all green (log/exp round-trip, rotation
   orthogonality, subspace orthonormality/idempotence, k-clamping, padding strip, end-to-end ranking).
 
+### Tier-2a Track S — Asymmetric Conditional Subspaces — [src/tier2a_S.py](../src/tier2a_S.py)  ← my Tier-2a contribution
+The training-free **S** approach (named `tier2a_S` to distinguish it from Alfonso's visual-prototype
+**V** approach, [tier2a_visual.py](../src/tier2a_visual.py)). Implemented from [S_plan.md](S_plan.md).
+Where faithful CLAY (Tier-1) is *polarity-blind* — it stacks `+` and `−` prompts into one subspace —
+Track S builds **separate** subspaces per polarity and scores:
+`cos(v_ref,v_d) + mean_a cos_{S⁺_a}(v_d,v_ref) − λ·Σ_b ‖proj_{S⁻_b}(v_d)‖`.
+The first term is an **identity anchor** (composition = "an image *like the reference*, with +X, without −X");
+the second is CLAY's manifold-aware focus restricted to the **positive-only** subspaces; the third is the
+genuinely new piece — an **asymmetric negation penalty** (energy in a negative subspace = "looks like the
+thing we want absent", so it is pushed down). This is the subspace generalisation of SpaceVLM's `d̂`
+(affirmative − negation), with PoS-Subspaces' per-condition philosophy. Same `get_ranking(src)->ranking`
+seam (CONTRACT §7); precompute-per-query, batched scoring over all of a query's sources.
+
+- **Architecture (SOLID, per CLAUDE.md):** lifted the frozen manifold primitives into a new shared
+  **[src/manifold.py](../src/manifold.py)** (`log_map` / `exp_map` / `align_rotation` / `build_subspace`)
+  so Tier-1 and Track S both *depend on it* instead of Track S reaching sideways into `tier1.py`. Tier-1
+  refactored to import them (behaviour-preserving — all 8 Tier-1 tests still green). Added
+  `results_saver.output_subdir()` so the 10 ablation CSVs group under **`output/tier2a_S/`**.
+- **Numbers (best config, k=50):** MEAN R@1 **0.0137**, R@5 **0.0454**, R@10 **0.0659** — **~2× Tier-1/CLAY**
+  (k20 R@5 0.0213), but still **below Tier-0** (promptbank R@5 0.0715). Honest, gradeable outcome: the
+  subspace term *preserves similarity toward the reference* rather than *pushing toward the target attribute*,
+  so on this **modification-heavy, positive-dominated** benchmark it trails Tier-0's raw text-direction push —
+  exactly the focus-vs-modify limitation the plan attributes to CLAY. The win is over CLAY, the method-to-beat.
+- **Ablations (10 rows, `output/tier2a_S/tier2a_S_{variant}_{anchor}_k{k+}_{k-}_lam{λ}_{rot}.csv`):**
+  - **Identity anchor is decisive** — removing it (`noanchor`, the plan-literal pure-subspace formula)
+    collapses R@5 0.0390 → **0.0168 ≈ CLAY**, confirming the anchor is what lifts Track S above Tier-1.
+  - **k monotonic** (k5→10→20→50: R@5 0.0317→0.0317→0.0390→**0.0454**); **per-condition > stacked**
+    (0.0390 vs 0.0345, as the plan predicted); **λ negligible** (0.05→0.5: 0.0391→0.0384 — the negation
+    penalty has little leverage here); **rotation H negligible/slightly hurts with the anchor** (norot 0.0394
+    vs rotH 0.0390 — opposite to Tier-1, because the anchor already works in image space).
+- **Negation reality check:** `-Male, -Mustache` stays **0.000 for every config — but so does Tier-0**
+  (27 sources, very restrictive Hamming-2 GT; effectively unwinnable training-free). Other negation/composed
+  queries *do* lift off zero with the anchor (e.g. `+Wearing_Lipstick,-Heavy_Makeup,+Smiling` R@5 up to 0.088).
+  So DoD #3/#4 ([S_plan §9](S_plan.md)) are **not** fully met by the literal design; the path to beating Tier-0
+  is a *modification-style* positive term (reward attribute presence, not similarity-to-reference) — flagged as
+  the next iteration, not silently claimed.
+- **Tests:** [test/test_tier2a_S.py](../test/test_tier2a_S.py) — 9 checks, all green (log/exp round-trip,
+  S⁺ orthonormality, P⁺ idempotence, S⁻ complement orthogonality, neg-norm non-negativity, end-to-end
+  ranking, empty-T⁺ and empty-T⁻ fallbacks, stacked variant).
+
 ---
 
 ## In progress / next up (my lane — Member B)
 - [x] **Tier-1** CLAY reproduction — done (see above).
-- [ ] **Tier-2a** training-free +/− projection-rejection variant (the guaranteed contribution).
+- [x] **Tier-2a Track S** training-free asymmetric-subspace +/− variant — done (see above); beats CLAY
+      ~2×, trails Tier-0. Next iteration: modification-style positive term to clear the Tier-0 bar.
 - [ ] **Modality-gap analysis** (justifies the design choices).
 - [ ] **β knob / α-β sweep** — port a separate negative weight `β` into `tier0.py` (the old
       [methods.py](../src/methods.py) had it; that file is otherwise superseded by `tier0.py`),
