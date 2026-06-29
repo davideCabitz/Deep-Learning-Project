@@ -95,3 +95,36 @@ def tangent_mean(
         weights = weights / weights.sum()
     logs = log_map(mu, X)                      # [m, d]
     return (weights.unsqueeze(1) * logs).sum(dim=0)   # [d]
+
+
+# ---------------------------------------------------------------------------
+# Rotation + subspace construction  (shared by tier1 and tier2a_S)
+# ---------------------------------------------------------------------------
+
+def align_rotation(a: torch.Tensor, b: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
+    # Minimal rotation H: a → b, identity on span{a,b}^⊥ (CLAY.md §3.2).
+    # Closes the modality gap by rotating the visual mean onto the text mean without
+    # disturbing intra-DB relationships. Returns I when a and b already (anti)coincide.
+    d = a.shape[0]
+    eye = torch.eye(d, dtype=a.dtype)
+    c = float(a @ b)
+    u2 = b - c * a
+    s = u2.norm()
+    if s < eps:
+        return eye
+    u2 = u2 / s
+    P = torch.outer(a, a) + torch.outer(u2, u2)
+    R = c * torch.outer(a, a) + s * torch.outer(u2, a) - s * torch.outer(a, u2) + c * torch.outer(u2, u2)
+    return eye - P + R
+
+
+def build_subspace(T_c: torch.Tensor, k: int) -> tuple[torch.Tensor, torch.Tensor]:
+    # Manifold-aware subspace — mu_c = normalize(mean(T_c)); SVD on log_{mu_c}(T_c) → V_k.
+    # Returns (mu_c [d], V_k [d, k_eff]); k clamped to the stack height.
+    # span(V_k) is the conditional similarity subspace (CLAY.md §3.2).
+    mu_c = F.normalize(T_c.mean(dim=0), dim=0)
+    L = log_map(mu_c, T_c)
+    _, _, Vh = torch.linalg.svd(L, full_matrices=False)
+    k_eff = min(k, Vh.shape[0])
+    V_k = Vh[:k_eff].T                            # [d, k_eff]
+    return mu_c, V_k
