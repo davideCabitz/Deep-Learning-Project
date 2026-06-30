@@ -74,14 +74,22 @@ class SVunionConfig:
 # Negative visual subspace mining  (planSV.md §3.2–3.3)
 # ---------------------------------------------------------------------------
 
-def _build_visual_neg_subspace(X_b: torch.Tensor, mu: torch.Tensor, k: int) -> torch.Tensor:
-    # Visual negative subspace for one attribute — principal directions of its has-X images at μ.
-    # L_b = Log_μ(X_b);  Q_b = top-k right singular vectors of L_b, descending.
+def _build_visual_neg_subspace(
+    X_b: torch.Tensor, X_not_b: torch.Tensor, mu: torch.Tensor, k: int
+) -> torch.Tensor:
+    # Visual negative subspace for one attribute — CONTRAST directions of has-X vs not-X at μ.
+    # L = Log_μ(X_b) − mean(Log_μ(X_not_b));  Q_b = top-k right singular vectors of L, descending.
+    # Recentring the has-X cloud on the not-X tangent centroid cancels the shared face-manifold
+    # variance (pose, identity, lighting, co-occurring attrs) BEFORE the SVD, so the principal
+    # directions span "X-ness" instead of generic face structure — the visual analogue of 2a's
+    # single-concept text stack. This is what makes k_neg>1 add attribute-removal power rather
+    # than punch a hole in the structure retrieval needs (see plan §3, §5).
     # SVD's right singular vectors are the eigenvectors of the Gram LᵀL, so we eigendecompose the
     # [d,d] Gram instead of SVD-ing the [m,d] L: same V, no [m,d] U materialised, scales to m≫d.
     # (Critical: log-map at the GLOBAL μ — the query's tangent point — NOT each stack's local mean,
     # or the rejection projects onto a subspace living in a different tangent plane. §3.2.)
-    L = log_map(mu, X_b)                                  # [m, d] tangent vectors at μ, all ⊥ μ
+    c_neg = log_map(mu, X_not_b).mean(dim=0)              # [d] tangent centroid of the not-X cloud
+    L = log_map(mu, X_b) - c_neg                          # [m, d] has-X residuals vs the not-X centre
     gram = L.T @ L                                        # [d, d] symmetric PSD second moment
     evals, evecs = torch.linalg.eigh(gram)               # ascending eigenpairs
     k_eff = min(k, evecs.shape[1])
@@ -103,10 +111,12 @@ def mine_neg_subspaces(
     for j, name in enumerate(ATTRIBUTE_NAMES):
         mask = train_attributes[:, j] > 0.5             # train images that HAVE attribute j
         X_b = train_features[mask]
-        if X_b.shape[0] == 0:
-            print(f"  [!] No train images with attribute '{name}' — subspace set to zero.")
+        X_not_b = train_features[~mask]                 # complement: the not-X contrast cloud
+        if X_b.shape[0] == 0 or X_not_b.shape[0] == 0:
+            # Need BOTH clouds for a contrast subspace — a one-sided attribute is an illegal state.
+            print(f"  [!] Attribute '{name}' missing has-X or not-X examples — subspace set to zero.")
             continue
-        Q = _build_visual_neg_subspace(X_b, mu, k)       # [d, k_eff]
+        Q = _build_visual_neg_subspace(X_b, X_not_b, mu, k)   # [d, k_eff]
         subspaces[j, :, : Q.shape[1]] = Q                # left-pad short bases with zeros (k_eff < k)
         print(f"  [{j+1:02d}/40] {name}: {X_b.shape[0]} images", end="\r")
 
@@ -116,9 +126,11 @@ def mine_neg_subspaces(
 
 def load_or_mine_neg_subspaces(force: bool = False) -> torch.Tensor:
     # Load cached negative subspaces if present, else mine and cache them.
-    # Cached at artifacts/visual_neg_subspaces.pt as a single [40, d, K_CACHE] tensor; μ comes
-    # from the directions cache so subspaces and the query share one global tangent point.
-    cache_path = _get_artifacts_dir() / "visual_neg_subspaces.pt"
+    # Cached at artifacts/visual_neg_subspaces_contrast.pt as a single [40, d, K_CACHE] tensor; μ
+    # comes from the directions cache so subspaces and the query share one global tangent point.
+    # (Distinct "_contrast" key from the original raw-cloud subspaces so both can coexist as an
+    # ablation — the cloud-variance subspaces are the falsified baseline, see plan §3/§5.)
+    cache_path = _get_artifacts_dir() / "visual_neg_subspaces_contrast.pt"
 
     if cache_path.exists() and not force:
         print(f"[OK] Loading cached negative subspaces: {cache_path}")

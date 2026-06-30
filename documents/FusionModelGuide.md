@@ -61,6 +61,37 @@ normalized arithmetic mean) and satisfies the centering property `Σ_i Log_μ(u_
 makes it the correct origin for all tangent-space decompositions. Already implemented in
 `src/manifold.py::intrinsic_mean`.
 
+#### 1.1 Numerical stability of Log/Exp maps (read before touching Φ)
+
+The forward-pass round-trip checks in the box above verify *values* are correct; they do not
+verify the maps are well-behaved *during training*, where gradients flow through them. Two
+specific failure modes are easy to hit and easy to miss:
+
+**Cut-locus / arccos instability.** `Log_μ(u) = θ·(u−(uᵀμ)μ)/‖…‖`, `θ = arccos(uᵀμ)`. The
+derivative of `arccos(x)` is `−1/√(1−x²)`, which is **unbounded as `x → ±1`** — i.e. as `u`
+approaches `μ` itself or its antipode `−μ` (the cut locus, GDE App. A.2). Any learned input that
+drifts close to `μ` (plausible for `h_ref` after the residual `MLP_ref` correction, or for a
+cross-attention output `r_b` that collapses toward the reference) produces an exploding gradient
+through `arccos`, not just a forward-pass numerical glitch. **This must be checked with
+gradients flowing** — e.g. a unit test that backpropagates a dummy loss through `Log_μ` for `u`
+sampled increasingly close to `μ`, watching `grad_norm` — not merely a forward round-trip check.
+`src/manifold.py::log_map`'s `eps` guard handles the `θ≈0` forward case (0/0 avoidance) but its
+gradient safety has not been separately verified; confirm this before relying on it inside Φ's
+training loop.
+
+**`q_tan` norm growth / sphere wrap-around.** `Exp_μ(v) = cos(‖v‖)·μ + sin(‖v‖)·(v/‖v‖)` is
+periodic with period `2π` in `‖v‖`. If the accumulated tangent vector (e.g. `h_pos`, summed
+across several learned positive contributions in Part II §2 Step 2) grows past `‖v‖ = π`,
+`Exp_μ` **wraps around the sphere**: the composed query silently aliases to a geometrically
+unrelated point, and the cosine ranking against the frozen DB becomes meaningless without any
+visible error. Unlike Tier-2c (fixed `α`, bounded number of additive terms, empirically observed
+to stay well inside the cone), Φ's `h_pos` is a *learned, unbounded* sum over cross-attention
+outputs — nothing currently constrains its norm. Recommended mitigations: monitor `‖q_tan‖`
+during training (log its distribution per batch); consider a soft penalty or hard clamp keeping
+`‖q_tan‖` inside a safe radius. GDE's own empirical cone-effect measurement (GDE App. C.1: "the
+maximum intrinsic distance from `μ` stays below `π/2`" across every dataset they test) is a
+reasonable practical bound to target, tighter than the theoretical `π` wrap point.
+
 ---
 
 ### 2. Geodesic Decomposability — Visual Attribute Directions
@@ -192,6 +223,16 @@ q     = normalize( Exp_μ(q_tan) )                           # back to sphere
 score = image_features @ q                                  # cosine ranking
 ```
 
+**Open design tension, flagged here and resolved in Part II §2 Step 3.** The argument above is
+specifically about why a *single* rejection direction cannot span a correlated attribute's full
+visual region — it is the reason Tier-2c rejects against a `k`-dimensional `Q_b`, not a rank-1
+`v̂_a`. Φ's cross-attention (Part II), as specified, currently emits **one** fused vector `r_b`
+per negative attribute — i.e. it collapses back to rank-1-per-attribute rejection, the exact
+limitation this section argues against. This is not an oversight to silently carry forward; it
+is addressed explicitly where Φ's Step 3 is specified, with the justification for why it may
+still be defensible for *text*-derived rejection directions (as opposed to *image*-mined ones)
+and the ablation that tests the alternative.
+
 ---
 
 ### 4. The Modality Gap and Why Tier-2c Bypasses It
@@ -214,11 +255,21 @@ cone. The query starts as `Log_μ(v_ref)` (image), the positive directions are i
 tangent vectors, and the negative subspaces are image-space PCA subspaces. No rotation needed;
 no gap to close. This is the primary geometric motivation for the Tier-2c architecture.
 
+**This property belongs to Tier-2c (and Track V) specifically — not to Φ.** Φ (Part II) is
+deliberately grounded in literal **text** inputs, because the project specification's fusion-
+module criteria are stated in terms of textual conditioning (Part II §0). That choice
+reintroduces the modality gap Tier-2c was built to avoid, which is exactly why Part II §2's
+Step 0 (fixed `t̂ = normalize(t − μ_txt)` centering) exists. **Do not present Φ's gap-handling
+and Tier-2c's gap-bypass-by-construction as the same achievement** — they are different tracks
+trading different things away. Tier-2c's originality argument can lean on "no gap to begin
+with"; Φ's cannot, and must rest instead on the learned-SVD-replacement framing (Part II §5).
+
 ---
 
 ### 5. Contrastive Training — InfoNCE Loss
 
-**Paper:** van den Oord et al. 2018 (InfoNCE) — SOTA.md §7.
+**Paper:** van den Oord et al. 2018 (InfoNCE) —
+`documents/papers/Representation_Learning_with_Contrastive_Predictive_Coding.md`, §2.3, Eq. 4.
 
 The training objective for Φ is an InfoNCE contrastive loss. For a query embedding `q`
 produced by Φ, a set of valid positive target embeddings `{p_i}`, and a set of hard negative
@@ -230,6 +281,90 @@ L = −log [  exp(q · p / τ)  /  ( exp(q · p / τ) + Σ_j exp(q · n_j / τ) 
 
 where `τ` is a temperature hyperparameter (start at 0.07, the standard CLIP temperature).
 
+#### 5.1 Reading the formula
+
+Take the pieces left to right:
+
+- `q` — the composite query Φ outputs for one training example (one `(v_ref, T+, T−)` triple).
+- `p` — one valid positive target image embedding (a true match under the Hamming-≤2 GT rule).
+- `{n_j}` — hard negative image embeddings (images that satisfy `T+` but violate `T−`).
+- `q·p` and `q·n_j` — cosine similarities, since every CLIP embedding is L2-normalized
+  (`q`, `p`, `n_j` are unit vectors, so the dot product *is* the cosine).
+- `τ` — a temperature that sharpens or flattens the resulting distribution: a small `τ`
+  (0.07) makes the softmax far more peaked, so the loss penalizes small similarity gaps harshly.
+
+**The fraction is a softmax over similarities.** It converts the raw scores
+`{q·p, q·n_1, q·n_2, …}` into a probability distribution over "which of these candidates is
+the correct target":
+
+```
+P(p is correct | q) = exp(q·p/τ) / ( exp(q·p/τ) + Σ_j exp(q·n_j/τ) )
+```
+
+The numerator is the probability mass assigned to the true positive `p`; the denominator
+normalizes over the positive plus every hard negative in the batch.
+
+**`−log(·)` of that probability is cross-entropy** against the correct class, where "the
+correct class" is always "the positive is the right answer" out of the candidate set
+`{p, n_1, n_2, …}`. This is identical in structure to training an `(N+1)`-way classifier with
+`N` negatives, where the label is fixed at index 0 (the positive).
+
+**What minimizing `L` does to `q`:** the gradient simultaneously pushes `q·p` up and every
+`q·n_j` down, *relative to each other* — it does not care about absolute similarity values,
+only that the positive outscores every hard negative by as wide a margin as the softmax can
+produce. This is exactly the InfoNCE construction of van den Oord et al. (originally: "pick
+the true future latent sample out of a batch of distractors"); here it is repurposed as "pick
+the true target image out of a batch of constraint-violating distractors."
+
+#### 5.2 Why InfoNCE — and not MSE, triplet, or margin loss — is the right choice for Φ
+
+1. **It directly optimizes the thing being evaluated.** The benchmark metric is Recall@K:
+   "is a valid target in the top-K of a cosine ranking against the query." InfoNCE's gradient
+   is exactly "increase cosine to true targets, decrease cosine to confusable distractors" —
+   the same operation the eval-time ranking performs. A regression loss (e.g., MSE between `q`
+   and a target embedding) would optimize a different, looser proxy: it would pull `q` toward
+   one specific `p` in absolute coordinates without ever being told what `q` should rank
+   *above*, so it provides no direct pressure against the failure mode that actually destroys
+   Recall@K — a hard negative outranking the true positive.
+
+2. **It needs no absolute scale, only relative ordering.** Φ does not need to learn "the right
+   magnitude of similarity" — it needs `q` to rank `p` above every `n_j`. Softmax cross-entropy
+   is shift-invariant across the candidate set and only cares about the *relative* gap between
+   the positive and the hardest negatives — which is precisely what Recall@K cares about too.
+
+3. **The project's hard-negative mining gives InfoNCE a meaningful gradient.** Easy negatives
+   (random, unrelated images) are already far from `q` in CLIP space, so `exp(q·n_random/τ)`
+   is already tiny and contributes almost nothing to the denominator — near-zero gradient,
+   wasted compute. The project's hard negatives (images satisfying `T+` but violating `T−` —
+   exactly the images Tier-0 mistakenly retrieves, §"Hard negatives" below) sit *close* to `q`
+   in similarity, so they dominate the denominator and produce a strong, informative gradient.
+   This is the same mechanism CPC's own ablation exploits (their Table 2: same-speaker vs.
+   mixed-speaker negatives change downstream accuracy substantially) — harder negatives make
+   the contrastive objective nontrivial.
+
+4. **One loss term handles many negatives at once.** Triplet loss (the other standard
+   contrastive option) requires a margin hyperparameter and contrasts exactly one positive
+   against one negative per term, discarding signal from every other hard negative in the
+   batch unless you sum many triplet terms by hand. InfoNCE's single softmax naturally
+   incorporates **all** negatives in the candidate set simultaneously — for a batch of ~10 hard
+   negatives per query, every one of them contributes gradient in the same forward/backward
+   pass, which is more sample-efficient than pairwise triplet comparisons and needs no margin
+   to tune.
+
+5. **It keeps Φ's training signal consistent with the geometry it is operating in.** CLIP
+   itself was trained with a (bidirectional) InfoNCE-style contrastive loss. Using the same
+   loss family to train Φ means Φ's gradients are shaped by the same notion of "similarity"
+   that originally organized the embedding space Φ has to navigate — there is no mismatch
+   between the loss that built the space and the loss that learns to compose within it.
+
+**Net effect:** InfoNCE was chosen because the evaluation metric is fundamentally a ranking
+problem, InfoNCE is a softmax-classification loss that directly trains "true target beats its
+distractors," and the project's own hard-negative construction (next subsection) supplies
+exactly the close, confusable negatives that make that gradient signal informative rather than
+near-zero.
+
+#### 5.3 Positive and negative construction
+
 **Positive pairs:** a valid target is a test-split image that (a) strictly satisfies all `T+`
 and `T−` constraints AND (b) has Hamming distance ≤ 2 from `v_ref` on the remaining attributes
 (identical to the evaluation GT protocol, but mined from the train split only).
@@ -237,7 +372,8 @@ and `T−` constraints AND (b) has Hamming distance ≤ 2 from `v_ref` on the re
 **Hard negatives:** images that satisfy `T+` but violate at least one `T−` constraint. These
 are the images Tier-0 retrieves incorrectly (they match the positive attribute but have the
 forbidden one). Hard negatives are what make the training objective nontrivial — easy negatives
-(random images) are already well-separated in CLIP space and provide no gradient signal.
+(random images) are already well-separated in CLIP space and provide no gradient signal
+(§5.2, point 3).
 
 **Why the training objective must mirror the evaluation protocol exactly:** Φ is scored on
 relaxed-Hamming GT. If training positives/negatives are constructed with a different rule,
@@ -317,7 +453,7 @@ across queries, (b) polarity-blind, or (c) reference-blind:
 |---|---|
 | One SVD over `[T+; T−]` stacked together | Separate, **learned** attention over `T+` and over `T−` |
 | Fixed basis `V_k`, independent of `v_ref` | Basis **conditioned on `v_ref`** via cross-attention query |
-| No notion of polarity (CLAY has no `+/−`) | Positive and negative paths use the **same weights, opposite roles** (addition vs. rejection) — the network must learn why they differ, rather than the architecture hard-coding the formula |
+| No notion of polarity (CLAY has no `+/−`) | Positive and negative paths use the **same weights by default** (addition vs. rejection roles) — a hypothesis ablated in Part II §2 Step 3, not an assumed win |
 | Static: same subspace for every reference image sharing a query string | Dynamic: **per-reference re-weighting** — a query's contribution to the fused direction changes with which reference it is composing against |
 
 This is the literal "explore more advanced fusion mechanisms ... cross-attention layers ...
@@ -369,7 +505,9 @@ deliberate non-learned step: the dominant text-cone offset has a known closed fo
 learned capacity is spent on attribute-specific and reference-specific reasoning, not on
 rediscovering a mean-subtraction from scratch. This is the one place text and image modalities
 need explicit reconciliation — and it is the cost of using literal text inputs that the
-visual-prototype version of Φ did not have to pay (see §6, Note on Tier-2c).
+visual-prototype version of Φ did not have to pay (see §6, Note on Tier-2c, and Part I §4's
+explicit scoping of the gap-bypass property to Tier-2c only — this step is exactly where that
+tradeoff shows up in Φ's forward pass).
 
 **Step 1 — Reference encoder.**
 
@@ -411,13 +549,48 @@ to each negative attribute's prompt stack:
 r_b = CrossAttn( query=h_ref, key=T̂_b, value=T̂_b )             r_b ∈ R^{512}
 ```
 
-Sharing weights between Step 2 and Step 3 is a deliberate parameter-efficiency and inductive-bias
-choice: the network learns one re-weighting operator over a paraphrase stack, conditioned on the
-reference; what differs between positive and negative is only how the *output* is used
-downstream (added vs. projected out), not how it is computed. This forces the network to learn a
-**general-purpose attribute-fusion operator**, not two unrelated sub-networks — directly
-answering the spec's "the model must learn ... how to dynamically weigh these inputs," for both
-polarities with one mechanism.
+**Weight-sharing between Step 2 and Step 3 is the project's default hypothesis, not a settled
+design win.** The case for sharing: the network learns one re-weighting operator over a
+paraphrase stack, conditioned on the reference, and what differs between positive and negative
+is only how the *output* is used downstream (added vs. projected out) — a parameter-efficient,
+single general-purpose attribute-fusion operator answering the spec's "the model must learn ...
+how to dynamically weigh these inputs" for both polarities at once.
+
+**The case against sharing, which must be stated and tested, not assumed away:** the two paths'
+optimal outputs are used for structurally different jobs. Step 2's `c_a` is consumed as a
+*direction to add* (push `q_tan` toward attribute `a`); Step 3's `r_b` is consumed as a
+*direction defining a subspace to reject* (the QR/projection in Step 4 removes everything along
+`r_b`). A vector that is good at "push toward X" is not obviously the same kind of object as a
+vector that is good at "define the axis that means X, so it can be deleted" — a single operator
+conditioned only on `h_ref` may be forced to compromise between two conflicting optimal
+geometries rather than excel at either. **Do not treat shared weights as proven-superior until
+this is checked empirically** (Definition of Done, §8, requires a separate-weights ablation row
+before this design choice can be reported as a win).
+
+**Resolving the rank-1-vs-subspace tension flagged in Part I §3.3.** As specified above, `r_b`
+is a single fused vector per negative attribute — i.e. Φ's negation collapses to
+rank-1-per-attribute rejection, which is exactly the limitation Tier-2c's `k`-dimensional
+`Q_b` (top-k eigenvectors of the has-`b` image Gram matrix, `src/tier2c.py::_build_visual_neg_subspace`)
+was built to avoid for correlated attributes. Two explicit options, not a silent inconsistency:
+
+- **Option A — single direction per attribute (recommended default for v1).** Keep `r_b` as
+  one vector, as specified. Justification: text paraphrase stacks and has-attribute image sets
+  are different statistical objects. The ~60 paraphrases of one attribute in `T̂_b` are
+  semantically tight — they all describe the same concept in different words, clustering closely
+  around a shared core — whereas Tier-2c's `X_b` (train images that *have* attribute `b`) carries
+  far higher intra-class visual variance (pose, lighting, co-occurring attributes), which is
+  exactly *why* that set needs a `k`-dimensional basis to capture its spread. Whether the
+  k-dimensional argument from §3.3 (derived for image subspaces) transfers to text-derived
+  rejection directions is an **assumption, not a proof** — state it as such, and validate it
+  empirically rather than asserting it.
+- **Option B — multi-vector rejection per attribute (documented ablation).** Let the
+  cross-attention emit `k` output vectors per negative attribute instead of 1 (`k` learned query
+  slots in place of a single `h_ref` query), producing a genuine `[k, 512]` per-attribute basis
+  before the QR union step in Step 4 — directly mirroring Tier-2c's k-dimensional rejection.
+  This is the structurally honest fix if Option A's assumption turns out false.
+
+Definition of Done (§8) requires running both options (`k=1` vs. `k>1` rejection slots) as an
+explicit ablation before claiming either is correct for the text-grounded setting.
 
 **Step 4 — Orthogonal rejection (geometric, not learned).**
 
@@ -604,7 +777,40 @@ supervision signal.
 
 ### 5. Why This Is Original
 
-The three prior architectures most likely to be cited as precedents, and why this Φ is distinct:
+**State the claim precisely: this is a novel *composition* of known parts, not a novel
+mechanism.** None of the individual geometric ingredients is new, and the report must not imply
+otherwise:
+
+- The tangent-space sandwich (Log/Exp at an intrinsic mean, linear algebra in between) is
+  Fletcher's Principal Geodesic Analysis — already applied to CLIP embeddings by both GDE
+  (Part I §1–2) and PoS-Subspaces.
+- Building a `k`-dimensional subspace as the top eigenvectors of a Gram matrix of tangent
+  vectors is PoS-Subspaces §2.2's `Ĉ_i` objective at `λ=0`:
+  `Ĉ_i = Σ_n (1−λ)·Log_μ(x_in)Log_μ(x_in)ᵀ − Σ_{j≠i} λ·Log_μ(x_jn)Log_μ(x_jn)ᵀ`
+  (`documents/papers/PSGS_VLM.md`, the manifold-space version of their class-subspace
+  construction). `src/tier2c.py::_build_visual_neg_subspace`'s Gram-eigendecomposition is this
+  formula's single-class (`λ=0`) special case.
+- Orthogonal-complement projection as the correct semantics of negation is Oldfield et al.'s
+  `Π⊥` operator (Part I §3.1–3.3), not an invention of this project.
+- InfoNCE with hard negatives is van den Oord et al. / the broader CLIP-training lineage
+  (Part I §5), reused as-is.
+
+**What is plausibly original is the specific recombination — the interface between the known
+parts, not any one of them:** a reference-conditioned cross-attention that structurally
+substitutes for SVD subspace construction (Part II §1's table), feeding directly into a
+manifold-correct rejection operator built on the **shared global tangent point μ** (the same
+point the query itself is composed at — the load-bearing invariant `src/tier2c.py` calls out
+for *why* its rejection is geometrically meaningful), with one shared operator conditioned on
+the reference serving both polarities. As far as the cited CIR literature goes (Combiner, CAFF,
+GeneCIS, TIRG — surveyed below), no single paper assembles this particular triangulation of
+*source* (paraphrase-stack text, not single embeddings), *space* (a manifold tangent point
+shared with the query), and *operator* (learned-substitute-for-SVD feeding guaranteed-orthogonal
+rejection). State the contribution as "novel composition / triangulation of established
+mechanisms," and expect the natural first question from a reviewer to be "which piece is new?" —
+the honest answer is **the interface**, not any individual piece.
+
+The three prior architectures most likely to be cited as precedents, and how this Φ's
+*composition* differs from each (not its geometry, which is shared with the broader literature):
 
 **Combiner (Baldrati et al., CVPR 2022):** An MLP that fuses CLIP image + text features for CIR.
 Outputs a free embedding with no geometric constraint. Operates on a single text embedding per
@@ -618,24 +824,31 @@ embedding. No subspace/SVD-replacement framing, no polarity distinction in the a
 Asymmetric formulation (only query is conditioned). No negation mechanism; the architecture
 does not distinguish `T+` from `T-`.
 
-**This Φ differs on three structural axes:**
+**This Φ's composition differs on three structural axes — each a combination choice, not a new
+primitive:**
 
 1. **Cross-attention is positioned as a literal SVD replacement, not a generic fusion block.**
    Φ attends over the *same per-attribute paraphrase stack* `T_a` that CLAY/Track S feed into
    SVD, conditioned on `v_ref`. No prior CIR paper frames cross-attention this way — as a
    learned, reference-conditioned substitute for a specific named bottleneck (the spec's
-   "naïve concatenation ... prior to SVD"), rather than as an unconstrained fusion layer.
+   "naïve concatenation ... prior to SVD"), rather than as an unconstrained fusion layer. The
+   attention mechanism itself is standard; *what it is positioned to replace* is the novel
+   framing choice.
 
 2. **Negation is architecturally enforced, not learned from scratch.** The QR + projection step
    (Step 4) guarantees `q_tan ⊥ span(Q_learned)` by construction — an exact orthogonal
    complement (Alhamoud's "any value but X" semantics, Part I §3.1) — regardless of what the
    cross-attention learns to output as `r_b`. A free MLP fusion model has no such guarantee.
+   The orthogonal-complement operator itself is Oldfield et al.'s; wiring a *learned* upstream
+   module's output through a *fixed, guaranteed-correct* downstream operator is the combination
+   choice.
 
-3. **One shared cross-attention operator serves both polarities.** Positive and negative paths
-   reuse the identical weights; only the downstream use (additive vs. rejected) differs. This
-   directly answers the spec's "the model must learn ... how to dynamically weigh these inputs"
-   for `T+` and `T−` with a single mechanism, rather than two independent sub-networks that
-   might learn inconsistent notions of "relevance."
+3. **One shared cross-attention operator serves both polarities — a hypothesis, see §3 above.**
+   Positive and negative paths reuse the identical weights by default; only the downstream use
+   (additive vs. rejected) differs. This is presented as the project's working assumption for
+   answering the spec's "the model must learn ... how to dynamically weigh these inputs" with a
+   single mechanism — not as a proven advantage over two independent sub-networks. See Part II
+   §2 Step 3 for the argued counter-case and the required ablation.
 
 ---
 
@@ -697,10 +910,35 @@ the same inputs). The rest is needed before writing the report.
 4. `make_get_ranking` in `src/fusion.py` plugs Φ into the eval harness (CONTRACT §7):
    same `make_get_ranking(query_str, …) → get_ranking(src_idx)` signature.
 5. **MEAN R@5 on the 14 benchmark queries strictly beats Track S (Tier-2a)** — the fixed-fusion
-   baseline on the *same* textual inputs — isolating the gain attributable to learning.
+   baseline on the *same* textual inputs — isolating the gain attributable to learning. **The
+   benchmark is externally fixed and authoritative**
+   (`Evaluation/celeba_evaluation.json`, 14 entries; `documents/CONTRACT.md` §4 confirms the
+   team does not construct or modify it — the spec text lists 12 queries but the JSON is the
+   authoritative source and contains 14, which the team evaluates as-is). With only 14 queries,
+   a single attribute's idiosyncrasy can swing the MEAN noticeably — **report the full per-query
+   table alongside the MEAN**, not the MEAN alone, so a reviewer can see whether the win is
+   broad or concentrated in one or two queries.
 6. Negation queries (`-Male, -Mustache`; `-Smiling, +Eyeglasses, +Wearing_Hat`) show
    R@5 > 0.000 — the concrete signal that the negation architecture is working.
-7. Report sub-section "Learned cross-attention fusion over conditional text subspaces" is
-   written with the forward pass equations, the loss, and two ablation rows: Φ vs. Track S
-   (isolates the learned-SVD-replacement effect) and Φ vs. Tier-2c (isolates the
-   text-vs-visual constraint representation effect).
+7. **Weight-sharing ablation (Part II §2 Step 3).** A second Φ variant with independent
+   cross-attention modules for the positive and negative paths (same total parameter budget,
+   split across two operators instead of one shared operator) is trained and evaluated. The
+   shared-weights design may only be reported as a deliberate win if this ablation shows it
+   matching or beating the separate-weights variant — otherwise report the separate-weights
+   result honestly as the better default.
+8. **Rejection-rank ablation (Part II §2 Step 3).** Both Option A (`k=1`, single fused rejection
+   vector per negative attribute, current default) and Option B (`k>1` learned rejection slots,
+   multi-query cross-attention feeding the QR union step) are trained and compared. This
+   resolves, empirically, the rank-1-vs-subspace tension flagged in Part I §3.3 rather than
+   leaving it as an unexamined design choice.
+9. Numerical-stability checks from Part I §1.1 pass: a gradient-flow test on `Log_μ` for inputs
+   approaching `μ`/`−μ` does not produce NaN/exploding gradients, and `‖q_tan‖` is monitored
+   during training and stays within the safe radius (target: below `π/2`, per GDE App. C.1's
+   empirical cone-effect bound) rather than silently wrapping around the sphere via `Exp_μ`.
+10. Report sub-section "Learned cross-attention fusion over conditional text subspaces" is
+    written with the forward pass equations, the loss, and the full set of ablation rows: Φ vs.
+    Track S (isolates the learned-SVD-replacement effect), Φ vs. Tier-2c (isolates the
+    text-vs-visual constraint representation effect), shared vs. separate cross-attention
+    weights (item 7), and `k=1` vs. `k>1` rejection (item 8). The originality claim in the
+    report must match Part II §5's framing: a novel composition of established mechanisms, not
+    a novel mechanism.
