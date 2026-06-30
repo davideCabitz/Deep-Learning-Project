@@ -268,125 +268,196 @@ should produce — not weights fed into an external pipeline.
 
 ## Part II — The Original Architecture
 
-### 1. Design Principle: Geometry-Grounded Fusion
+### 0. Inputs Are Literal Textual Constraints (Spec Compliance)
 
-**The central claim.** Standard CIR fusion models (Combiner, CAFF, FiLM) output a free 512-d
-embedding with no inductive bias toward the correct geometric structure. They must discover
-from data that negation is a complement projection, not a subtraction — and they often fail to.
+The project specification (§3, criterion 1) requires the architecture to **"natively accept and
+process multiple textual conditions alongside a visual reference"**, and (criterion 2) to
+replace **"the standard concatenation of textual ... embeddings prior to SVD"** with a learned
+fusion mechanism that **"dynamically re-weight[s] features based on the provided text
+conditions."** Both criteria are stated in terms of the textual embedding side of the problem —
+not a closed-vocabulary lookup table of pre-mined visual prototypes.
 
-The originality of this Φ is that **the architecture enforces the Tier-2c geometry**. The
-network does not output a free embedding. Its forward pass *is* the geodesic addition followed
-by orthogonal subspace rejection, with each intermediate quantity produced by a learned module
-instead of a fixed formula. The geometry is the inductive bias; the network learns the
-*content* of each geometric step.
+This rules out grounding Φ in the mined visual directions/subspaces from Track V / Tier-2c
+(`directions[a]`, `visual_neg_subspaces[b]`). Those are valid, well-motivated training-free
+methods, but their forward pass never touches a CLIP text embedding, so a Φ built on them would
+not satisfy "natively accept and process textual conditions," and would not engage with the
+"naïve pre-SVD bottleneck" at all, since there is no SVD-over-text step in that pipeline to
+replace.
 
-No prior CIR paper (Combiner 2022, CAFF 2024, TIRG 2019, GeneCIS 2023) designs a fusion
-module whose forward pass is structurally a manifold operation. This is the original
-contribution.
+**Φ is therefore grounded in Track S's machinery instead of Track V's.** The query format stays
+exactly `(+Smiling, −Eyeglasses)` — attribute names with a polarity sign, never free text typed
+by a user — but each attribute name is resolved to its **CLIP text embeddings** via the existing
+prompt bank (`artifacts/clip_attr_prompt_bank.pt`, built by `src/clip_prompts.py`):
+
+```
+T_a = prompt_bank[ATTR_TO_IDX[a], :n_a]      # [n_a, 512], n_a ≈ 60 paraphrases of attribute a
+```
+
+This is the same object CLAY/Tier-1 and Track S (`tier2a_S.py`) already build their SVD
+subspaces from. Φ's job is to **replace that SVD step with a learned, dynamically-reweighting
+cross-attention**, exactly as criterion 2 names ("cross-attention layers ... that dynamically
+re-weight features based on the provided text conditions").
+
+---
+
+### 1. Design Principle: Learned Fusion Over a Geometric Skeleton
+
+**The central claim.** CLAY's fusion of multiple textual conditions is a **fixed, query-agnostic
+linear operator**: stack every prompt embedding into one matrix, run one SVD, keep the top-k
+right singular vectors. The same projection matrix `P_c = V_k V_k^T` is applied regardless of
+which attributes are positive vs. negative, regardless of how many prompts each attribute
+contributes, and regardless of the reference image. This is exactly the "naïve concatenation
+... prior to SVD" the spec singles out as the bottleneck to overcome.
+
+Φ replaces the SVD with a **learned cross-attention layer that plays the same structural role**
+(producing a subspace basis from a stack of condition embeddings) but is no longer (a) fixed
+across queries, (b) polarity-blind, or (c) reference-blind:
+
+| CLAY's SVD step | Φ's cross-attention replacement |
+|---|---|
+| One SVD over `[T+; T−]` stacked together | Separate, **learned** attention over `T+` and over `T−` |
+| Fixed basis `V_k`, independent of `v_ref` | Basis **conditioned on `v_ref`** via cross-attention query |
+| No notion of polarity (CLAY has no `+/−`) | Positive and negative paths use the **same weights, opposite roles** (addition vs. rejection) — the network must learn why they differ, rather than the architecture hard-coding the formula |
+| Static: same subspace for every reference image sharing a query string | Dynamic: **per-reference re-weighting** — a query's contribution to the fused direction changes with which reference it is composing against |
+
+This is the literal "explore more advanced fusion mechanisms ... cross-attention layers ...
+that dynamically re-weight features based on the provided text conditions" the spec asks for —
+not a metaphor for it.
+
+The geometric skeleton (geodesic addition in tangent space, orthogonal-complement rejection,
+Exp-map back to the sphere) is retained from Tier-2c/Track S as the **inductive bias**: Φ does
+not output a free 512-d embedding the way Combiner or CAFF do. It outputs a learned tangent
+contribution that is composed through the same proven-correct manifold operations. The network
+learns the *content* (which directions matter, how to combine multiple paraphrases of the same
+attribute, how to weigh multiple attributes against the reference); the *structure* (addition is
+additive, negation is rejection) stays geometrically guaranteed.
+
+No prior CIR paper (Combiner 2022, CAFF 2024, TIRG 2019, GeneCIS 2023) designs a fusion module
+whose attention layer is structurally a *replacement for SVD subspace construction*, conditioned
+on the reference image, feeding a manifold-correct composition operator. This is the original
+contribution, and it is the one that engages directly with the spec's two named criteria.
 
 ---
 
 ### 2. Forward Pass
 
-**Inputs (all from frozen CLIP, no encoder is called at training time):**
+**Inputs (per query, all from frozen CLIP, no new encoder calls beyond the existing prompt bank):**
 
 | Symbol | Shape | Source |
 |---|---|---|
 | `v_ref` | `[512]` | `image_features[src_idx]` from the frozen test DB |
-| `v_a` for each `a ∈ T+` | `[512]` each | `directions[ATTR_TO_IDX[a]]` from mined visual directions |
-| `Q_b` for each `b ∈ T-` | `[512, k]` each | `subspaces[ATTR_TO_IDX[b]][:, :k]` from mined neg subspaces |
+| `T_a` for each `a ∈ T+` | `[n_a, 512]` | `prompt_bank[ATTR_TO_IDX[a], :n_a]` — text embeddings, one stack per positive attribute |
+| `T_b` for each `b ∈ T−` | `[n_b, 512]` | `prompt_bank[ATTR_TO_IDX[b], :n_b]` — text embeddings, one stack per negative attribute |
 
-**Step 1 — Reference encoder: learned tangent lift.**
+Each `T_a`/`T_b` is a stack of ~60 CLIP text embeddings (paraphrases of the same attribute) —
+exactly CLAY's per-condition prompt stack, kept **per-attribute and per-polarity separate**
+(never concatenated across attributes or across `+`/`−`, which is precisely the departure from
+CLAY's naïve stacking).
 
-The fixed Log-map `Log_μ(v_ref)` produces a tangent vector, but it treats the reference as a
-single point with no understanding of the query context (which attributes are requested). The
-learned encoder replaces this with a context-aware tangent representation:
+**Step 0 — Modality-gap centering (fixed, not learned).**
 
-```
-h_ref = MLP_ref( v_ref )                                        h_ref ∈ R^{512}
-```
-
-`MLP_ref` is a two-layer network (512 → 256 → 512, LayerNorm, GELU). It receives the raw
-reference embedding and produces a contextualized representation in the same 512-d space.
-At initialization, `MLP_ref` is set to approximate the identity (final layer weights near zero,
-bias near zero) so Φ starts near the Tier-2c formula and learns incremental corrections.
-
-**Step 2 — Positive fusion: learned geodesic push.**
-
-For each positive attribute `a ∈ T+`, the fixed formula adds `α · v_a` to the tangent vector
-with a global scalar. The learned module replaces `α` with a per-attribute, per-reference
-contribution:
+Before any text embedding reaches the network, apply the closed-form correction already proven
+in `tier0_enhanced.py` (FIX 1, +63% R@5 relative, the single largest lever found in this
+project):
 
 ```
-c_a = CrossAttn( query=h_ref, key=v_a, value=v_a )             c_a ∈ R^{512}
+t̂ = normalize( t − μ_txt )      for every prompt embedding t in every T_a, T_b
 ```
 
-Single-head cross-attention with `d_model=512`. The query is the reference representation; key
-and value are the visual direction of the positive attribute. The attention output `c_a` is a
-learned "how much and in what direction to push toward attribute a, given this specific
-reference."
+`μ_txt` is the mean of all 40 attributes' text embeddings (precomputed once, frozen). This is a
+deliberate non-learned step: the dominant text-cone offset has a known closed form, so Φ's
+learned capacity is spent on attribute-specific and reference-specific reasoning, not on
+rediscovering a mean-subtraction from scratch. This is the one place text and image modalities
+need explicit reconciliation — and it is the cost of using literal text inputs that the
+visual-prototype version of Φ did not have to pay (see §6, Note on Tier-2c).
 
-The positive contribution is accumulated:
-
-```
-h_pos = Σ_{a ∈ T+} c_a                                         h_pos ∈ R^{512}
-```
-
-For `T+` empty, `h_pos = 0` (no addition step).
-
-**Step 3 — Negative fusion: learned subspace rejection mask.**
-
-For each negative attribute `b ∈ T-`, the fixed formula builds a union subspace from the
-pre-mined `Q_b` and rejects. The learned module replaces the fixed subspace with a learned
-rejection direction conditioned on the reference:
+**Step 1 — Reference encoder.**
 
 ```
-r_b = CrossAttn( query=h_ref, key=Q_b, value=Q_b )             r_b ∈ R^{512}
+h_ref = v_ref + MLP_ref( v_ref )                                h_ref ∈ R^{512}
 ```
 
-Here key and value are the columns of `Q_b` (treated as a sequence of k=10 tokens, each
-`[512]`). The cross-attention output `r_b` is a learned "which direction within the visual
-Male/Mustache/... subspace is most relevant to reject from this specific reference."
+Residual two-layer MLP (512 → 256 → 512, LayerNorm, GELU), initialized near-identity (final
+layer weights/bias near zero) so Φ starts close to a sensible default and learns corrections.
 
-The union rejection direction is built by stacking and re-orthonormalising:
+**Step 2 — Positive fusion: cross-attention replaces the SVD, per attribute.**
 
-```
-R = stack( r_b / ‖r_b‖  for b ∈ T- )                          R ∈ R^{|T-|, 512}
-Q_learned, _ = torch.linalg.qr( R.T )                          Q_learned ∈ R^{512, |T-|}
-```
-
-The QR step orthonormalises the learned rejection directions, exactly as in Tier-2c's
-`_build_union_basis`. This enforces that the negation operator remains an orthogonal projector
-— a geometric constraint the network cannot violate.
-
-**Step 4 — Geometric assembly: the forward pass is the Tier-2c formula.**
+For each positive attribute `a ∈ T+`, instead of computing `V_k` from a fixed SVD of `T̂_a`,
+a learned cross-attention layer attends from the reference onto the attribute's paraphrase
+stack, producing a single fused contribution:
 
 ```
-q_tan = h_ref + h_pos                                  # positive step (in tangent-like space)
-q_tan = q_tan − Q_learned @ (Q_learned.T @ q_tan)     # orthogonal rejection (exact same op as tier2c)
-q     = normalize( Exp_μ( q_tan ) )                    # back to sphere
+c_a = CrossAttn( query=h_ref, key=T̂_a, value=T̂_a )             c_a ∈ R^{512}
 ```
 
-The output `q ∈ S^{511}` is a unit vector in image space, scored by cosine against the frozen
-DB. This is identical to Tier-2c's output modality — the evaluation harness (`eval.py`,
-`make_get_ranking`) is unchanged.
+This **is** the dynamic re-weighting the spec asks for: instead of SVD's fixed, data-independent
+top-k truncation, the attention weights over the `n_a` paraphrases are a function of `h_ref` —
+different references can emphasize different paraphrases of "Smiling" (e.g., one that better
+matches a subtle smile vs. an open one). Multiple positive attributes are combined by summation
+in tangent space, after each has been independently attended to — so one attribute with many
+prompts cannot dominate another with few (the exact failure mode of CLAY's naïve concatenation,
+Track S's S_plan.md §0.1):
+
+```
+h_pos = Σ_{a ∈ T+} c_a                                          h_pos ∈ R^{512}
+```
+
+**Step 3 — Negative fusion: cross-attention produces the rejection direction, per attribute.**
+
+Symmetric construction, **same cross-attention weights** (shared module, different role) applied
+to each negative attribute's prompt stack:
+
+```
+r_b = CrossAttn( query=h_ref, key=T̂_b, value=T̂_b )             r_b ∈ R^{512}
+```
+
+Sharing weights between Step 2 and Step 3 is a deliberate parameter-efficiency and inductive-bias
+choice: the network learns one re-weighting operator over a paraphrase stack, conditioned on the
+reference; what differs between positive and negative is only how the *output* is used
+downstream (added vs. projected out), not how it is computed. This forces the network to learn a
+**general-purpose attribute-fusion operator**, not two unrelated sub-networks — directly
+answering the spec's "the model must learn ... how to dynamically weigh these inputs," for both
+polarities with one mechanism.
+
+**Step 4 — Orthogonal rejection (geometric, not learned).**
+
+```
+R = stack( r_b / ‖r_b‖  for b ∈ T− )                            R ∈ R^{|T−|, 512}
+Q_learned, _ = torch.linalg.qr( R.T )                            Q_learned ∈ R^{512, |T−|}
+q_tan = (h_ref + h_pos) − Q_learned @ (Q_learned.T @ (h_ref + h_pos))
+```
+
+The QR re-orthonormalisation and the projection are fixed manifold operations (identical
+mechanism to Tier-2c's `_build_union_basis` / rejection step) — this is where "−X means any
+value but X" (Alhamoud et al., §3 of Part I) is **architecturally guaranteed**, not hoped for.
+A free MLP fusion model (Combiner-style) has no such guarantee; it must discover the correct
+negation geometry purely from gradient signal, and may not.
+
+**Step 5 — Geometric assembly.**
+
+```
+q = normalize( Exp_μ( q_tan ) )                                  q ∈ S^{511}
+score = image_features @ q                                       cosine ranking, same harness
+```
 
 **Complete forward pass diagram:**
 
 ```
-v_ref  ──── MLP_ref ──────────────────────────────────── h_ref ─────┐
-                                                                     │
-v_a⁺¹  ─┐                                                           │
-v_a⁺²  ─┤── CrossAttn(query=h_ref) ──── c_a ──── Σ ──── h_pos ─────┤
-  ...   ─┘                                                           │
-                                                              h_ref + h_pos = q_tan_pre
-                                                                     │
-Q_b⁻¹  ─┐                                                           │
-Q_b⁻²  ─┤── CrossAttn(query=h_ref) ──── r_b ──── QR ─── Q_learned ─┤
-  ...   ─┘                                                           │
-                                                      q_tan = q_tan_pre − Q_learned Q_learned.T q_tan_pre
-                                                                     │
-                                                             Exp_μ → normalize → q
+v_ref ── MLP_ref ──────────────────────────────────────── h_ref ────────┐
+                                                                          │
+T̂_a1 (text, n_a1×512) ─┐                                                │
+T̂_a2 (text, n_a2×512) ─┤── CrossAttn(query=h_ref) per attr ── c_a ── Σ ── h_pos
+  ...  T+               ─┘                                                │
+                                                            h_ref+h_pos = q_tan_pre
+                                                                          │
+T̂_b1 (text, n_b1×512) ─┐  [SAME cross-attn weights as above]            │
+T̂_b2 (text, n_b2×512) ─┤── CrossAttn(query=h_ref) per attr ── r_b ──┐    │
+  ...  T−               ─┘                                          │    │
+                                              normalize ── QR ── Q_learned
+                                                                          │
+                                      q_tan = q_tan_pre − Q_learned Q_learned.T q_tan_pre
+                                                                          │
+                                                          Exp_μ → normalize → q
 ```
 
 ---
@@ -396,86 +467,86 @@ Q_b⁻²  ─┤── CrossAttn(query=h_ref) ──── r_b ──── QR �
 ```python
 class FusionPhi(nn.Module):
     """
-    Geometry-grounded fusion module. Forward pass IS the tier2c composition,
-    with each geometric step replaced by a learned cross-attention module.
-    CLIP is frozen. Only Phi trains.
+    Geometry-grounded fusion module over LITERAL TEXTUAL CONSTRAINTS.
+    Cross-attention replaces CLAY's per-condition SVD (spec criterion 2);
+    the manifold composition (geodesic addition + orthogonal rejection)
+    stays fixed as the inductive bias (spec criterion 1's "+/- interaction").
+    CLIP is frozen; only Phi trains.
 
     Args:
-        d_model: CLIP embedding dimension (512 for ViT-B/32).
-        n_heads: attention heads for cross-attention (default 4).
-        mu:      global intrinsic mean [d], registered as buffer (not trained).
+        d_model:   CLIP embedding dimension (512 for ViT-B/32).
+        n_heads:   attention heads for the shared cross-attention (default 4).
+        mu:        global intrinsic mean [d], registered as buffer (not trained).
+        mu_txt:    mean of all 40 attribute text embeddings [d], fixed centering offset.
     """
-    def __init__(self, d_model=512, n_heads=4, mu=None):
+    def __init__(self, d_model=512, n_heads=4, mu=None, mu_txt=None):
         super().__init__()
         self.d = d_model
 
-        # Step 1: Reference encoder
         self.mlp_ref = nn.Sequential(
             nn.Linear(d_model, 256),
             nn.LayerNorm(256),
             nn.GELU(),
             nn.Linear(256, d_model),
         )
-        # Init near identity: final layer near zero so Phi starts close to tier2c
-        nn.init.zeros_(self.mlp_ref[-1].weight)
+        nn.init.zeros_(self.mlp_ref[-1].weight)   # near-identity at init
         nn.init.zeros_(self.mlp_ref[-1].bias)
 
-        # Steps 2 and 3: shared cross-attention (same weights for pos and neg)
+        # ONE shared cross-attention module for both polarities (Step 2 and Step 3)
         self.cross_attn = nn.MultiheadAttention(
             embed_dim=d_model, num_heads=n_heads, batch_first=True
         )
 
-        # Global mean — registered as buffer, not a parameter
-        if mu is not None:
-            self.register_buffer("mu", mu)
+        self.register_buffer("mu", mu)
+        self.register_buffer("mu_txt", mu_txt)    # FIX-1-style centering offset
 
-    def forward(self, v_ref, pos_dirs, neg_subspaces):
+    def _center(self, T):
+        # Step 0 — fixed modality-gap correction (Liang et al. 2022; tier0_enhanced FIX 1).
+        # T: [n, d] raw text embeddings for one attribute's paraphrase stack.
+        return F.normalize(T - self.mu_txt, dim=-1)
+
+    def _attend(self, h_ref, T_hat):
+        # Shared cross-attention: query = reference, key = value = centered prompt stack.
+        # T_hat: [n, d] -> unsqueeze to [1, n, d] (batch handled by caller's loop/vmap).
+        q_in = h_ref.unsqueeze(0).unsqueeze(0)     # [1, 1, d]
+        kv = T_hat.unsqueeze(0)                    # [1, n, d]
+        out, _ = self.cross_attn(q_in, kv, kv)      # [1, 1, d]
+        return out.squeeze(0).squeeze(0)            # [d]
+
+    def forward(self, v_ref, T_pos_stacks, T_neg_stacks):
         """
-        v_ref:          [B, d]          reference image embeddings (unit)
-        pos_dirs:       [B, n+, d]      positive visual directions (from directions cache)
-        neg_subspaces:  [B, m-, k, d]   negative visual subspaces (Q_b columns, k per attr)
+        v_ref:          [d]                reference image embedding (unit)
+        T_pos_stacks:    list of [n_a, d]   one raw prompt stack per positive attribute
+        T_neg_stacks:    list of [n_b, d]   one raw prompt stack per negative attribute
 
         Returns:
-            q:  [B, d]  composite query embeddings (unit, on the sphere)
+            q: [d]  composite query embedding (unit, on the sphere)
+
+        (Batched/vmapped version used in training; single-query form shown for clarity —
+        mirrors tier2c.py's single-vector seam vs. batched-driver split.)
         """
-        B, d = v_ref.shape
+        h_ref = v_ref + self.mlp_ref(v_ref)                      # [d]
 
-        # Step 1: reference encoder
-        h_ref = v_ref + self.mlp_ref(v_ref)       # residual: stays near v_ref at init  [B, d]
+        h_pos = torch.zeros_like(h_ref)
+        for T_a in T_pos_stacks:
+            h_pos = h_pos + self._attend(h_ref, self._center(T_a))
 
-        # Step 2: positive fusion
-        if pos_dirs.shape[1] > 0:
-            # Query = h_ref expanded per positive, Key = Value = pos_dirs
-            q_in = h_ref.unsqueeze(1)              # [B, 1, d]
-            c_a, _ = self.cross_attn(q_in, pos_dirs, pos_dirs)   # [B, 1, d]
-            h_pos = c_a.squeeze(1)                 # [B, d]
+        q_tan_pre = h_ref + h_pos                                  # [d]
+
+        if T_neg_stacks:
+            r_list = [F.normalize(self._attend(h_ref, self._center(T_b)), dim=-1, eps=1e-8)
+                       for T_b in T_neg_stacks]
+            R = torch.stack(r_list, dim=0)                          # [m-, d]
+            Q_learned, _ = torch.linalg.qr(R.T)                     # [d, m-]
+            q_tan = q_tan_pre - Q_learned @ (Q_learned.T @ q_tan_pre)
         else:
-            h_pos = torch.zeros_like(h_ref)
+            q_tan = q_tan_pre
 
-        q_tan = h_ref + h_pos                      # [B, d] positive tangent
-
-        # Step 3: negative fusion + orthogonal rejection
-        if neg_subspaces.shape[1] > 0:
-            B, m_neg, k, d = neg_subspaces.shape
-            # Flatten the k columns of each attribute into one token sequence [B, m*k, d]
-            neg_tokens = neg_subspaces.view(B, m_neg * k, d)
-            q_in = h_ref.unsqueeze(1)              # [B, 1, d]
-            r_b, _ = self.cross_attn(q_in, neg_tokens, neg_tokens)   # [B, 1, d]
-            r_b = r_b.squeeze(1)                   # [B, d]
-
-            # Normalize learned rejection direction and reject
-            r_hat = F.normalize(r_b, dim=-1, eps=1e-8)    # [B, d] unit rejection direction
-            q_tan = q_tan - (q_tan * r_hat).sum(-1, keepdim=True) * r_hat  # [B, d]
-            # Note: for |T-| > 1, stack multiple r_hat and apply QR for the multi-attribute case
-            # (see _build_learned_rejection below for the batched version)
-
-        # Step 4: geometric assembly — Exp_μ + normalize
-        q = self._exp_map(q_tan)                   # [B, d], unit
-        return q
+        return self._exp_map(q_tan)
 
     def _exp_map(self, v):
         # Exp_μ(v) = cos(‖v‖)·μ + sin(‖v‖)·(v/‖v‖)   (GDE App. A, Eq. 13)
-        norm = v.norm(dim=-1, keepdim=True).clamp(min=1e-8)
+        norm = v.norm().clamp(min=1e-8)
         return torch.cos(norm) * self.mu + torch.sin(norm) * (v / norm)
 ```
 
@@ -484,10 +555,12 @@ class FusionPhi(nn.Module):
 | Module | Parameters |
 |---|---|
 | `mlp_ref` (512→256→512) | 256×512 + 512×256 + biases ≈ 263K |
-| `cross_attn` (d=512, h=4) | 4×(512×128)×3 projections ≈ 786K |
+| `cross_attn` (d=512, h=4, shared pos/neg) | 4×(512×128)×3 projections ≈ 786K |
 | **Total** | **~1.05M** |
 
-All CLIP parameters stay frozen. Only Φ (~1M params) is trained.
+All CLIP parameters stay frozen. Only Φ (~1M params) is trained. The shared cross-attention
+(vs. separate pos/neg modules) halves the attention parameter count relative to the earlier
+visual-prototype design and forces a single general-purpose fusion operator.
 
 ---
 
@@ -512,11 +585,16 @@ L = InfoNCE( q, {p_i}, {n_j} )
     ]
 ```
 
-where `q = Φ(v_ref, pos_dirs, neg_subspaces)` is the Φ output, `P` is the set of valid
-positive target embeddings, `N` is the set of hard negative embeddings, and `τ=0.07`.
+where `q = Φ(v_ref, T_pos_stacks, T_neg_stacks)` is the Φ output — the literal prompt-bank text
+stacks per attribute, not pre-mined visual prototypes (§0). `P` is the set of valid positive
+**target image** embeddings, `N` is the set of hard negative **target image** embeddings, and
+`τ=0.07`.
 
-All embeddings `{p_i}`, `{n_j}` are **frozen CLIP features** from the train DB — Φ learns to
-produce a `q` that is close to valid targets and far from violating images in CLIP image space.
+`{p_i}`, `{n_j}` are **frozen CLIP image features** from the train DB — only the *constraint*
+side of the input is textual; the retrieval target was always images, exactly as the spec's
+`v_target ∈ V` requires. Φ learns to produce a `q` that is close to valid target images and far
+from constraint-violating images, using text as the conditioning signal and images as the
+supervision signal.
 
 **Optimizer:** AdamW, lr=1e-4, weight_decay=1e-2. Cosine schedule, 5-epoch warmup.
 **Batch size:** 64 queries (each with 1 reference, ~3–5 positives, ~10 hard negatives).
@@ -529,11 +607,12 @@ produce a `q` that is close to valid targets and far from violating images in CL
 The three prior architectures most likely to be cited as precedents, and why this Φ is distinct:
 
 **Combiner (Baldrati et al., CVPR 2022):** An MLP that fuses CLIP image + text features for CIR.
-Outputs a free embedding with no geometric constraint. Does not handle explicit negation. Does
-not use visual attribute directions. The fusion is unconstrained.
+Outputs a free embedding with no geometric constraint. Operates on a single text embedding per
+condition (no paraphrase stack, no per-condition subspace notion). Does not handle explicit
+negation as a distinct operator.
 
 **CAFF (CVPR 2024 Workshop):** Cross-attention late-fusion for CIR. Also outputs a free
-embedding. No subspace rejection. No polarity distinction in the architecture.
+embedding. No subspace/SVD-replacement framing, no polarity distinction in the architecture.
 
 **GeneCIS (Vaze et al., CVPR 2023):** Trains a feature modulator for conditional similarity.
 Asymmetric formulation (only query is conditioned). No negation mechanism; the architecture
@@ -541,38 +620,49 @@ does not distinguish `T+` from `T-`.
 
 **This Φ differs on three structural axes:**
 
-1. **The forward pass is the Tier-2c geometry, not a free MLP.** The network cannot output an
-   arbitrary embedding; it must produce a vector that is the result of geodesic addition
-   followed by orthogonal complement projection. The inductive bias is hard-coded, not learned.
+1. **Cross-attention is positioned as a literal SVD replacement, not a generic fusion block.**
+   Φ attends over the *same per-attribute paraphrase stack* `T_a` that CLAY/Track S feed into
+   SVD, conditioned on `v_ref`. No prior CIR paper frames cross-attention this way — as a
+   learned, reference-conditioned substitute for a specific named bottleneck (the spec's
+   "naïve concatenation ... prior to SVD"), rather than as an unconstrained fusion layer.
 
-2. **Negation is architecturally enforced.** The QR step in Step 3 ensures that the learned
-   rejection direction is unit-normed and the projection `q_tan − r̂(r̂ᵀq_tan)` is an exact
-   orthogonal complement — not an approximation that a free MLP would have to learn from scratch.
+2. **Negation is architecturally enforced, not learned from scratch.** The QR + projection step
+   (Step 4) guarantees `q_tan ⊥ span(Q_learned)` by construction — an exact orthogonal
+   complement (Alhamoud's "any value but X" semantics, Part I §3.1) — regardless of what the
+   cross-attention learns to output as `r_b`. A free MLP fusion model has no such guarantee.
 
-3. **All inputs are visual, eliminating the modality gap.** `v_ref`, `v_a` (mined from images),
-   and `Q_b` (mined from images) all live in the image cone. No rotation H, no text prompt
-   stack, no cross-modal alignment step. The architecture is geometrically clean.
+3. **One shared cross-attention operator serves both polarities.** Positive and negative paths
+   reuse the identical weights; only the downstream use (additive vs. rejected) differs. This
+   directly answers the spec's "the model must learn ... how to dynamically weigh these inputs"
+   for `T+` and `T−` with a single mechanism, rather than two independent sub-networks that
+   might learn inconsistent notions of "relevance."
 
 ---
 
 ### 6. Connection to the Tier Progression (Report Framing)
 
-The four tiers form a clean story of progressive refinement:
-
-| Tier | α | Negation operator | Trained? | Free parameters |
+| Tier | Constraint representation | Fusion mechanism | Negation operator | Trained? |
 |---|---|---|---|---|
-| **Tier-0** | fixed scalar | vector subtraction (wrong) | No | α |
-| **Tier-2a Track V** | fixed scalar | single-direction rejection | No | α |
-| **Tier-2c** | fixed scalar | subspace rejection (union QR) | No | α, k_neg |
-| **Φ (Tier-2d)** | learned per-ref, per-attr | learned subspace rejection | Yes | Φ weights |
+| **Tier-0** | single text embedding | vector addition | subtraction (wrong) | No |
+| **Tier-1 CLAY** | stacked text prompts | one global SVD | none (polarity-blind) | No |
+| **Tier-2a Track S** | per-polarity text prompts | separate SVD per polarity | subspace-norm penalty | No |
+| **Tier-2c** | mined visual prototype | geodesic addition | subspace rejection (QR) | No |
+| **Φ** | per-attribute text prompts (same source as Track S) | **learned cross-attention** (replaces SVD) | subspace rejection (QR, same as 2c) | **Yes** |
 
-Each row fixes a flaw in the row above. Tier-2c fixes the negation operator (subtraction →
-subspace rejection). Φ fixes the remaining free parameter (fixed α → learned, reference-aware
-positive push; fixed subspace → learned rejection direction conditioned on the reference).
+Φ is positioned as **Track S's natural successor**: same textual inputs (prompt-bank stacks per
+attribute, never concatenated across polarity), same manifold-correct rejection mechanism as
+Tier-2c, but the fixed SVD subspace-construction step is replaced by a learned, reference-
+conditioned cross-attention. The ablation table compares Φ against **both** Track S (same
+inputs, fixed fusion) and Tier-2c (same geometric rejection, different inputs) — isolating
+exactly two deltas: *what changes when SVD becomes learned* (vs. Track S) and *what changes when
+the constraint representation becomes textual instead of visual* (vs. Tier-2c).
 
-The ablation table in the report compares Φ to Tier-2c directly, with the delta attributable
-purely to learning: same geometry, same evaluation harness, only the scalars are now predicted
-by a network.
+**Note on Tier-2c / Track V.** The mined-visual-prototype design explored earlier in this
+project remains a valid, fully training-free Tier-2a/2c contribution — it is kept and reported
+on its own merits (no modality gap, no rotation needed, strong negation results). It is simply
+not the basis for Φ, because the spec's fusion-module criteria are stated in terms of textual
+conditioning and SVD replacement, which only Track S's input representation engages with
+directly.
 
 ---
 
@@ -581,14 +671,16 @@ by a network.
 | Paper | File | Sections | What you extract |
 |---|---|---|---|
 | GDE | `documents/papers/GDE.md` | §3.1–3.3, Prop. 1–2, App. A (Eq. 13–14) | Log/Exp closed forms, intrinsic mean, tangent mean direction |
-| CLAY | `documents/papers/CLAY.md` | §3.2 | What Φ replaces (the naïve pre-SVD bottleneck) |
+| CLAY | `documents/papers/CLAY.md` | §3.2 | The exact SVD step Φ's cross-attention replaces |
 | PoS-Subspaces | `documents/papers/PSGS_VLM.md` | §2.2, Eq. 5 | The `Π⊥` operator and the QR orthonormalisation argument |
 | Alhamoud (Negation) | `documents/papers/VLM_DO_NOT_UNDERSTAND_NEGATIONSpdf.md` | §4.1, Fig. 6 | Why subtraction is wrong; what the correct semantics of "−X" is |
+| Liang (Modality Gap) | SOTA.md §1 | abstract + §3 | Why the fixed centering step (Step 0) is needed for text inputs |
 | InfoNCE | SOTA.md §7 (van den Oord 2018) | full | The contrastive loss; hard-negative intuition |
-| Liang (Modality Gap) | SOTA.md §1 | abstract + §3 | Why image-space directions eliminate the gap |
+| `tier2a_S.py` / `S_plan.md` | `src/tier2a_S.py`, `documents/S_plan.md` | full | The exact prompt-bank input and SVD step Φ is built to outperform |
 
 **Minimum to start coding:** GDE App. A (Log/Exp) + PoS-Subspaces §2.2 (the projection
-operator) + Alhamoud §4.1 (negation semantics). The rest is needed before writing the report.
+operator) + Alhamoud §4.1 (negation semantics) + `tier2a_S.py` (the baseline Φ must beat using
+the same inputs). The rest is needed before writing the report.
 
 ---
 
@@ -596,14 +688,19 @@ operator) + Alhamoud §4.1 (negation semantics). The rest is needed before writi
 
 Φ is complete when:
 
-1. `src/fusion.py` exports `FusionPhi` with the forward pass in §2.
+1. `src/fusion.py` exports `FusionPhi` with the forward pass in §2, consuming **prompt-bank
+   text stacks** (`T_pos_stacks`, `T_neg_stacks`) as the literal positive/negative constraints —
+   not mined visual prototypes.
 2. `src/query_generator.py` generates synthetic train-split queries with the Hamming-≤2 GT
-   protocol, positive sampling, and hard-negative sampling.
+   protocol, positive sampling, and hard-negative sampling (target side stays images).
 3. `src/train_phi.py` runs the InfoNCE training loop with checkpointing and learning curves.
 4. `make_get_ranking` in `src/fusion.py` plugs Φ into the eval harness (CONTRACT §7):
    same `make_get_ranking(query_str, …) → get_ranking(src_idx)` signature.
-5. **MEAN R@5 on the 14 benchmark queries strictly beats Tier-2c** on at least one config.
+5. **MEAN R@5 on the 14 benchmark queries strictly beats Track S (Tier-2a)** — the fixed-fusion
+   baseline on the *same* textual inputs — isolating the gain attributable to learning.
 6. Negation queries (`-Male, -Mustache`; `-Smiling, +Eyeglasses, +Wearing_Hat`) show
    R@5 > 0.000 — the concrete signal that the negation architecture is working.
-7. Report sub-section "Geometry-grounded fusion module" is written with the forward pass
-   equations, the loss, and the ablation row comparing Φ to Tier-2c.
+7. Report sub-section "Learned cross-attention fusion over conditional text subspaces" is
+   written with the forward pass equations, the loss, and two ablation rows: Φ vs. Track S
+   (isolates the learned-SVD-replacement effect) and Φ vs. Tier-2c (isolates the
+   text-vs-visual constraint representation effect).
