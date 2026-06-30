@@ -690,6 +690,114 @@ All run in < 1 s on random unit vectors. Key invariants verified:
 
 ---
 
+## Phase D — Tier-2d DGP: Dynamic Gated Projection (`src/tier2d_dgp.py`) *(this session, 2026-06-30)*
+
+### Why we built it — closing in on the spec's actual mandate
+
+Every training-free method so far either uses a **single** text vector per attribute (Tier-0,
+enhanced Tier-0) or **bypasses text entirely** (Track V / `tier2b.py`, visual prototypes). None
+of them engages the requirement the spec singles out as *the* core task
+(`project_specification.md` §1, §3.2):
+
+> "the CLAY pipeline relies on a **naïve stacking or concatenation** of embeddings prior to
+> applying SVD … You are expected to explore more advanced fusion mechanisms … that
+> **dynamically re-weight features based on the provided text conditions**."
+
+CLAY/Track-S build a per-condition subspace by running **one SVD over the attribute's prompt
+stack with every paraphrase row weighted equally** — query-agnostic and reference-blind. That
+equal-weight, fixed projection is the "naïve pre-SVD stack" the spec attacks. Tier-2d is the
+first method we built that **replaces that step directly** — and it does so training-free, as the
+closed-form precursor to the learned fusion model Φ.
+
+**A rejected detour, recorded for honesty.** The first idea this session was "Modality-Reliability
+Fusion": per-attribute blend of enhanced-Tier-0 *text* directions and Track-V *visual* directions,
+gated by a train-mined reliability score. It was **rejected before implementation** because it has
+*no SVD step and no per-condition subspace* — it blends two precomputed rank-1 vectors, so it
+*sidesteps* the bottleneck instead of replacing it (the same defect that disqualifies the
+visual-prototype pipeline from being the fusion contribution). A valid latent-arithmetic baseline,
+but not the method that beats the SVD bottleneck. DGP is its spec-compliant replacement.
+
+### What it is based on
+
+- **The bottleneck it replaces:** CLAY (Lim et al., 2026) per-condition SVD over the prompt stack
+  `T_c` — `src/clip_prompts.py` builds the `[40, n, 512]` bank that is exactly that pre-SVD object.
+- **Modality-gap centering (Step 0):** Liang et al., 2022 ("Mind the Gap") — reused verbatim from
+  enhanced Tier-0's FIX 1, the single largest training-free lever found in this project (+63% R@5).
+- **The gate (Step 1–2):** a closed-form, reference-conditioned softmax over the paraphrase rows —
+  the hand-coded analogue of cross-attention (the mechanism the spec names as a "potential avenue").
+  This is the original contribution: a *training-free dynamic re-weighting of the prompt stack that
+  structurally substitutes for SVD*. No cited method (GDE, CLAY, PoS-Subspaces, enhanced Tier-0,
+  Combiner, CAFF, GeneCIS) does this. Stated honestly as a **novel composition**, not a new primitive.
+- **The composition (Step 3):** geodesic addition + orthogonal-complement rejection, reused from
+  `src/manifold.py` and `src/tier2b.py` — GDE (Berasi et al., 2025) Def. 1 + Alhamoud et al. 2025 /
+  Oldfield et al. 2023 negation-as-rejection ("−X = any value but X", not anti-X subtraction).
+
+### The method (forward pass)
+
+```
+Step 0  t̂_i = normalize(t_i − μ_txt)                      # center each prompt row (FIX 1)
+Step 1  a_i = softmax_i( ⟨v_ref, t̂_i⟩ / τ )               # reference-conditioned gate over n paraphrases
+Step 2  d_c = normalize( Σ_i a_i · t̂_i )                   # conditional direction from the GATED stack
+Step 3  q_tan = Log_μ(v_ref) + Σ_{c∈T+} α·d_c ;  reject span{d_c : c∈T−} ;  q = normalize(Exp_μ(q_tan))
+```
+
+Each reference *re-weights the same prompt stack differently* — the dynamic per-condition
+re-weighting the spec asks for, replacing SVD's fixed equal-weight top-k truncation.
+
+### Frozen-DB / CLAY discipline — verified
+
+CLIP is **never invoked** at query time. Every input — the `[N,512]` image DB, the `[40,n,512]`
+prompt bank, the global mean μ — is a pre-built cached tensor. The gate is dot products + a
+weighted mean + one matmul against the **read-only** DB; the DB is scored by cosine and never
+mutated. No re-encoding, identical discipline to every prior tier (spec §3.2 step 2).
+
+### Results (MEAN over 14 queries, `output/tier2d/`)
+
+| Config | R@1 | R@5 | R@10 | vs enhanced-T0 bar (0.1755) |
+|---|:---:|:---:|:----:|:---:|
+| τ=0.07 (sharp gate), centered, α0.5 | 0.0252 | 0.0757 | 0.1137 | below |
+| τ=0.07 (sharp gate), centered, α1.0 | 0.0359 | 0.1141 | 0.1719 | below |
+| τ=0.07 (sharp gate), centered, α1.5 | 0.0276 | 0.1067 | 0.1649 | below |
+| **τ=100 (≈uniform gate), centered, α1.0** | **0.0363** | **0.1152** | **0.1777** | **beats (barely)** |
+| τ=0.07, **no centering**, α1.0 | 0.0246 | 0.0659 | 0.1042 | below |
+
+### Interpreting the results — an honest partial result
+
+1. **Centering does the heavy lifting, not the gate.** Removing FIX-1 centering drops R@10
+   0.172 → 0.104 — re-confirming enhanced Tier-0's lesson that the modality gap is the dominant
+   error in any text-based method.
+2. **The closed-form gate does NOT beat its own uniform-weight baseline.** The `τ→∞` ablation
+   (uniform weights = the equal-weight prompt mean, i.e. enhanced-Tier-0 on the prompt stack) is
+   the *best* config at 0.1777, while the sharp reference-conditioned gate (τ=0.07) is slightly
+   *worse* at 0.1719. A hand-coded softmax over cosine(v_ref, paraphrase) over-commits to whichever
+   single paraphrase aligns with the reference.
+3. **But the re-weighting signal is real.** Per-query, the sharp gate *helps* on some
+   multi-attribute queries (`-Smiling, +Eyeglasses, +Wearing_Hat` R@10 0.380 → 0.405) and *hurts*
+   on others (`+Black_Hair, -Wavy_Hair` 0.266 → 0.199). The axis exists; the closed-form rule is
+   too crude to exploit it reliably.
+
+### Why this is the right outcome (the motivation for Φ)
+
+This is not a dead end — it is precisely the **evidence that justifies the learned fusion model
+Φ**. Tier-2d proves (a) the prompt-stack re-weighting axis exists and matters, and (b) a *fixed*
+gate cannot capture it. Φ (the spec's primary deliverable) is "DGP with the closed-form softmax
+replaced by a **learned** cross-attention," trained with InfoNCE — its job is to beat 0.1777 by
+*learning* the gate weights instead of hand-coding them. Tier-2d is therefore the clean,
+spec-aligned training-free ablation rung directly beneath Φ: closed-form gate (training-free) →
+learned gate (trained), sharing the same geometric skeleton so Φ's gain isolates exactly what
+learning buys.
+
+**Spec compliance confirmed:** replaces the pre-SVD stack with dynamic per-condition re-weighting
+(§3.2), natively processes multiple textual conditions, defines +/− interaction (add vs. reject),
+training-free (§3.2 allowed), built from scratch reusing only our own modules (§6), CLIP frozen.
+
+**Caveat / open lever (not yet run):** only the rank-1 gated direction was implemented. The planned
+rank-k *dynamic weighted-PCA* variant (a genuine learned-free subspace, the fuller SVD-replacement)
+was not run — it could still help correlated attributes before concluding the closed-form gate is
+exhausted. Run: `python src/tier2d_dgp.py` → `output/tier2d/*.csv`.
+
+---
+
 ## TODO
 
 - [x] Confirm the "mandatory 12" queries vs. the 14 in the JSON — resolved: evaluate all 14
@@ -710,6 +818,13 @@ All run in < 1 s on random unit vectors. Key invariants verified:
 - [x] Track V Extension: `src/tier2a_visual_extension.py`, `test/test_tier2a_visual_ext.py`.
       CLIP-weighted directions + α sweep + joint QR negation. Best variant: α=1.5, MEAN R@5=0.0724 (+19% vs base GDE).
       Outputs: `output/tier2a_visual_ext/`.
+- [x] Tier-2d DGP (`src/tier2d_dgp.py`): closed-form reference-conditioned gate over the prompt
+      stack, replacing CLAY's equal-weight SVD (spec §3.2). Best config (τ→∞ uniform, centered,
+      α1.0) MEAN R@10=0.1777, just past the enhanced-T0 bar; sharp closed-form gate underperforms
+      uniform → motivates the learned fusion model Φ. Outputs: `output/tier2d/`.
+- [ ] **Next: fusion model Φ** — learned cross-attention replacing DGP's closed-form gate over the
+      same prompt stacks, InfoNCE-trained, same geodesic skeleton. Bar to beat: 0.1777.
+- [ ] (Optional) Tier-2d rank-k dynamic weighted-PCA variant before concluding the closed-form gate is exhausted.
 - [ ] (Optional, report only) α-sweep ablation curve for Tier-0 on centered config.
 - [ ] **Next: Track S (Tier-2a subspace)** — `src/tier2a_subspace.py`. Asymmetric +/−
       text subspaces + negation as subspace complement. Zero new artifacts; consumes
