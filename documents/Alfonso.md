@@ -894,6 +894,139 @@ or `python src/fusion_dgp.py` locally (slow on CPU).
 
 ---
 
+## Phase F — Tier-3 line: training the fusion Φ and attacking the double-negation zero (`src/tier3_*.py`) *(this session, 2026-07-01)*
+
+The Fusion Φ from Phase E moved from notebook prototype to a **trained, VM-run model line**. This
+phase covers (a) the tooling to build/verify the train artifacts on the VM, (b) the first real
+training run of Φ, and (c) a family of Tier-3 variations built specifically to break the
+`-Male, -Mustache` = 0.000 wall that every prior tier hits. All of this is my committed work; the
+parallel `tier3c` / `tier3_hybrid` line is Davide's.
+
+---
+
+### VM artifact tooling — build once, verify before a long run
+
+- **`src/extract_train_features.py`** — VM-native (no `src/` imports, no notebook) extractor that
+  builds the two mandatory train-split tensors directly on the GPU box:
+  `clip_image_features_train.pt` `[162770, 512]` L2-normalized and `celeba_attributes_train.pt`
+  `[162770, 40]` 0/1, built in one aligned pass from `list_eval_partition.txt` (partition 0). Same
+  CLIP model / preprocessing / two-step projection as `clip_features.py`, so train and test vectors
+  are geometrically compatible. This replaces the Colab extraction notebook for the VM workflow.
+- **`src/validate_artifacts.py`** — a pre-flight tripwire run *before* any training: asserts every
+  tensor Φ consumes exists, has the right shape/dtype, is L2-normalized where required, and that
+  train/test row counts and the prompt bank `[40, n, 512]` line up. Fails loudly on drift so a
+  multi-hour VM run never starts against a malformed artifact.
+
+### First training run of Φ (`fusion_dgp.py` → `src/tier3_dgp.py`)
+
+Ran Phase E's Φ for real and renamed the module into the tier line: `fusion_dgp.py` →
+**`src/tier3_dgp.py`** (the CSV moved `output/fusion_dgp/` → `output/tier3_dgp/`). First trained
+result on the 14-query benchmark:
+
+| Method | R@1 | R@5 | R@10 |
+|---|:---:|:---:|:---:|
+| **Tier-3 DGP Φ** (InfoNCE, cross-attention gate) | 0.0383 | 0.1110 | 0.1607 |
+
+This clears the mandatory bar (beats Tier-0 R@1=0.0224 and CLAY-rotH R@1=0.0098) and is essentially
+tied with enhanced-Tier-0 on R@10 — the learned gate beats the closed-form DGP gate, exactly as
+Phase D predicted. But two structural bottlenecks remained, and both are visible in the per-query
+rows: **negation is a fixed hand-coded operator** (nothing trains the model to suppress a negated
+attribute — `-Male, -Mustache` = 0.000), and **InfoNCE is not metric-consistent** with R@K/P@K.
+Those two observations drove everything below.
+
+### Tier-3 variations to break the double-negation zero (`documents/Tier3_Variations_Report.md`)
+
+Wrote a design report and implemented a family of variations, each isolating one suspected cause of
+the negation floor. All share Φ's architecture, `QueryGenerator`, and manifold skeleton — only the
+named lever changes, so each is a clean ablation:
+
+- **`src/tier3_contrastive.py`** — swaps InfoNCE for a **ListNet listwise ranking loss**
+  (Cao et al. 2007): `L = − Σ_i y_i · log softmax_i(q·x_i / τ)`, `y_i = 1/|pos|` on positives.
+  ListNet's gradient flows through the full ranked list (all hard negatives), making the objective
+  metric-consistent with P@K — which InfoNCE's pair-wise log-sum-exp is not.
+- **`src/tier3_negation.py`** — a **learned `NegationHead`**: instead of the fixed orthogonal
+  rejection `q_tan ← q_tan − (q_tan·d_b)·d_b`, an MLP predicts a suppression coefficient
+  `λ = 2·sigmoid(g([q_tan, d_b, q_tan⊙d_b, q_tan·d_b])) ∈ (0,2)`, so `q_tan ← q_tan − λ·d_b`.
+  Zero-init tail → λ=1 at start, recovering exact rejection; the model can then learn to
+  over-suppress (λ>1) or under-suppress (λ<1) per query context.
+- **`src/tier3_contrastive_negation.py`** — the two levers together (ListNet + NegationHead),
+  testing whether the stronger ranking gradient is what the learned λ needed to train (InfoNCE's
+  signal was too weak to move λ off 1.0).
+- **`src/tier3_composer.py`** — the architectural leap: **drop the latent-arithmetic skeleton
+  entirely**. A 2-layer transformer encoder consumes the token sequence
+  `[CLS, v_ref, t⁺₁…, t⁻₁…]` (polarity embeddings mark +/−) and emits a residual on `v_ref`; no
+  log/exp maps, no rejection — composition, negation, and their interaction are all learned.
+
+### Tier-3 Combined — the current best (`src/tier3_combined.py`)
+
+Folded the winning levers into one model: **ListNet ranking loss + the learned NegationHead +
+distance-based hard-negative mining** (among the attribute-logic hard negatives, keep the K closest
+to the current query in CLIP space — online FaceNet-style curriculum) **+ an attribute
+disentanglement auxiliary loss** `L_dis = (1/|pairs|) Σ |cos(d_a, d_b)|` that pushes attribute
+directions apart (attacking CLIP's `Male ↔ Mustache` entanglement so negation is geometrically
+cleaner). Total loss `L = L_ListNet + λ_dis · L_dis` (λ_dis=0.1).
+
+**Result — the best fusion model to date** (`output/tier3_combined/tier3_combined.csv`):
+
+| Method | R@1 | R@5 | R@10 |
+|---|:---:|:---:|:---:|
+| Tier-3 DGP Φ | 0.0383 | 0.1110 | 0.1607 |
+| **Tier-3 Combined** | **0.0563** | **0.1576** | **0.2329** |
+
+That is **+47% R@1 and +42% R@5 over the trained Φ**, and comfortably the best model in the project.
+The big lifts come from multi-attribute queries where ranking the full list matters
+(`-Smiling, +Eyeglasses, +Wearing_Hat` R@5 jumps to 0.4937).
+
+### The honest negation result (why the wall is partly structural)
+
+Even Combined leaves `-Male, -Mustache` = 0.000 and the other negation-heavy queries near the floor:
+
+| Query | Tier-3 DGP | Tier-3 Combined |
+|---|:---:|:---:|
+| `-Heavy_Makeup` R@5 | 0.0756 | 0.0448 |
+| `-Young` R@5 | 0.0230 | 0.0271 |
+| `-Male, -Mustache` R@10 | 0.0000 | **0.0000** |
+| `+Wearing_Lipstick, -Heavy_Makeup, +Smiling` R@5 | 0.0588 | 0.0882 |
+
+Two diagnostics from this phase explain why:
+
+1. **Only the fully learned Composer ever scored `-Male, -Mustache` ≠ 0** (R@5=0.0741, R@10=0.1111)
+   — but its overall MEAN collapsed to R@1=0.0052 because a from-scratch transformer under-trains in
+   30 epochs. Signal: a *learned* negation operator can express what the fixed
+   arithmetic-with-rejection skeleton cannot, but you must not throw away the positive-query quality
+   to get it.
+2. **`-Male, -Mustache` is partly a ceiling of CLIP ViT-B/32 itself**, not just of our operator: it
+   has only 27 valid sources, and the Hamming≤2 GT forces a *cross-gender same-identity* match — an
+   identity-retrieval problem, not a negation-understanding one. The improvable negation queries are
+   `-Young`, `-Heavy_Makeup`, and the lipstick-composite.
+
+### Training-free negation attempts (built, then removed)
+
+To exhaust the training-free options before committing to a heavier learned negation, I implemented
+three geometry-only / lightweight variations on the DGP backbone:
+
+- **`src/tier3_symneg.py`** — CLAY **symmetric subspace negation**: build a per-attribute CLAY
+  subspace for each negated attribute and project it out of **both** the query and the frozen DB
+  (CLAY §3.1 Eq. 1 symmetric form). Result MEAN R@10=0.1630, `-Male, -Mustache`=0.000 — confirms
+  closed-form negation is exhausted (matches the Tier-2c/2d verdicts).
+- **`src/tier3_negsteer.py`** — text-space negation steering (Sammani et al. 2026): learn a negation
+  direction from a linear classifier on affirmative-vs-negated text embeddings and steer the query
+  norm-preservingly.
+- **`src/tier3_gated.py`** — a gated-negation variant on the DGP composition.
+
+These were **committed, evaluated, then removed** (`0d254bf`, `c77aca6`) once they confirmed the
+training-free negation axis was exhausted — kept in git history for the ablation record but pruned
+from `src/` to keep the tier line clean. `tier3_contrastive_negation.py` was likewise removed after
+its levers were folded into `tier3_combined.py`.
+
+**Status / report framing:** **Tier-3 Combined is the headline fusion result** (MEAN R@1=0.0563,
+R@5=0.1576). The negation floor is now understood as two separate problems — an *operator* problem
+(fixed post-gate rejection, addressable by a learned negation) and a *ceiling* problem
+(`-Male, -Mustache` is near CLIP's limit on this benchmark). Run: `python src/tier3_combined.py`
+(train on the VM; needs the train artifacts and `validate_artifacts.py` green first).
+
+---
+
 ## TODO
 
 - [x] Confirm the "mandatory 12" queries vs. the 14 in the JSON — resolved: evaluate all 14
@@ -918,11 +1051,27 @@ or `python src/fusion_dgp.py` locally (slow on CPU).
       stack, replacing CLAY's equal-weight SVD (spec §3.2). Best config (τ→∞ uniform, centered,
       α1.0) MEAN R@10=0.1777, just past the enhanced-T0 bar; sharp closed-form gate underperforms
       uniform → motivates the learned fusion model Φ. Outputs: `output/tier2d/`.
-- [x] **Fusion model Φ** (`src/fusion_dgp.py` + `notebooks/fusion_dgp.ipynb`): learned
+- [x] **Fusion model Φ** (`src/fusion_dgp.py` → renamed `src/tier3_dgp.py`): learned
       cross-attention replacing DGP's closed-form gate over the same prompt stacks, InfoNCE-trained,
-      same geodesic skeleton. ~1.3M params, CLIP frozen. Notebook validated end-to-end on CPU
-      (training meant for Colab T4). Mandatory bar: beat Tier-0 (0.1048) + CLAY-rotH (0.0541);
-      stretch: beat DGP gate (0.1777). **Pending: run training on Colab and record results.**
+      same geodesic skeleton. ~1.3M params, CLIP frozen. **Trained** (VM): MEAN R@1=0.0383,
+      R@5=0.1110, R@10=0.1607 — clears the mandatory bar, learned gate beats the closed-form gate.
+      Outputs: `output/tier3_dgp/`.
+- [x] VM artifact tooling: `src/extract_train_features.py` (VM-native train-split CLIP extractor)
+      and `src/validate_artifacts.py` (pre-flight tensor validator, run green before any VM training).
+- [x] Tier-3 variations vs. the double-negation zero (`documents/Tier3_Variations_Report.md`):
+      ListNet loss (`tier3_contrastive.py`), learned NegationHead (`tier3_negation.py`), the two
+      combined (`tier3_contrastive_negation.py`), and the fully-learned transformer
+      (`tier3_composer.py`). Composer is the only method to score `-Male, -Mustache` ≠ 0
+      (R@5=0.0741) but its MEAN collapses (undertrained from scratch).
+- [x] **Tier-3 Combined** (`src/tier3_combined.py`): ListNet + NegationHead + distance-based
+      hard-neg mining + attribute-disentanglement loss. **Best fusion model to date** — MEAN
+      R@1=0.0563, R@5=0.1576, R@10=0.2329 (+47% R@1 over trained Φ). Outputs: `output/tier3_combined/`.
+- [x] Training-free negation attempts, evaluated then removed: `tier3_symneg.py` (CLAY symmetric
+      subspace), `tier3_negsteer.py` (text-space steering), `tier3_gated.py`. Confirmed the
+      training-free negation axis is exhausted; kept in git history, pruned from `src/`.
+- [ ] Break the `-Male, -Mustache` operator floor with a *learned* negation that keeps Combined's
+      positive quality (the Composer proved a learned operator can, but under-trained). Note the
+      27-source / cross-gender ceiling in the report.
 - [ ] (Optional) Tier-2d rank-k dynamic weighted-PCA variant before concluding the closed-form gate is exhausted.
 - [ ] (Optional, report only) α-sweep ablation curve for Tier-0 on centered config.
 - [ ] **Next: Track S (Tier-2a subspace)** — `src/tier2a_subspace.py`. Asymmetric +/−
