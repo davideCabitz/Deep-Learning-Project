@@ -20,6 +20,7 @@ env/
 
 # PyTorch artifacts (large binary tensors — not committed)
 artifacts/*.pt
+.pt
 
 # Dataset (never commit raw images or attribute files)
 celeba/
