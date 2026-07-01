@@ -50,9 +50,13 @@ import time
 import math
 from dataclasses import dataclass
 
-import matplotlib
-matplotlib.use("Agg")                       # headless: render to file, never open a window
-import matplotlib.pyplot as plt
+try:                                        # optional: only used for the training-curve PNG
+    import matplotlib
+    matplotlib.use("Agg")                   # headless: render to file, never open a window
+    import matplotlib.pyplot as plt
+    HAVE_MPL = True
+except ModuleNotFoundError:
+    HAVE_MPL = False
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -451,15 +455,18 @@ def main(cfg: Tier4Config = Tier4Config()) -> None:
     torch.save(probes.state_dict(), out_dir / "tier4_hybrid_probes.pt")
     log(f"[OK] saved weights → {out_dir}")
 
-    # ---- Training curves (headless) ----
-    fig, ax = plt.subplots(1, 2, figsize=(11, 4))
-    ax[0].plot(probe_hist); ax[0].set_title("Stage 1 — probe BCE")
-    ax[0].set_xlabel("epoch"); ax[0].set_ylabel("BCE")
-    ax[1].plot(phi_hist); ax[1].set_title("Stage 2 — Φ ListNet")
-    ax[1].set_xlabel("epoch"); ax[1].set_ylabel("ListNet")
-    fig.tight_layout()
-    fig.savefig(out_dir / "tier4_training_curves.png", dpi=120)
-    log(f"[OK] saved training curves → {out_dir / 'tier4_training_curves.png'}")
+    # ---- Training curves (headless; skipped if matplotlib is unavailable) ----
+    if HAVE_MPL:
+        fig, ax = plt.subplots(1, 2, figsize=(11, 4))
+        ax[0].plot(probe_hist); ax[0].set_title("Stage 1 — probe BCE")
+        ax[0].set_xlabel("epoch"); ax[0].set_ylabel("BCE")
+        ax[1].plot(phi_hist); ax[1].set_title("Stage 2 — Φ ListNet")
+        ax[1].set_xlabel("epoch"); ax[1].set_ylabel("ListNet")
+        fig.tight_layout()
+        fig.savefig(out_dir / "tier4_training_curves.png", dpi=120)
+        log(f"[OK] saved training curves → {out_dir / 'tier4_training_curves.png'}")
+    else:
+        log("matplotlib not installed — skipping training-curve PNG (install it to enable plots)")
 
     # ---- Evaluate on the 14-query benchmark ----
     log("evaluating on the eval JSON …")
