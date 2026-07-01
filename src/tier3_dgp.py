@@ -23,7 +23,7 @@ of our own closed-form DGP gate.
 This module is the tracked, importable mirror of `notebooks/fusion_dgp.ipynb` (the graded
 deliverable). It plugs into the shared eval engine through `make_get_ranking` (CONTRACT §5/§7).
 
-Train (needs train artifacts):  python src/fusion_dgp.py
+Train (needs train artifacts):  python src/tier3_dgp.py
 """
 
 from __future__ import annotations
@@ -352,14 +352,14 @@ def evaluate_phi(model: FusionPhi, ks=(1, 5, 10), save: bool = True, tag: str = 
     print(format_results_table(results, ks=ks))
 
     if save:
-        save_results_csv(results, output_subdir("fusion_dgp") / f"fusion_dgp_{tag}.csv", ks=ks)
+        save_results_csv(results, output_subdir("tier3_dgp") / f"tier3_dgp_{tag}.csv", ks=ks)
     return results
 
 
 if __name__ == "__main__":
     from results_saver import output_subdir
     phi = train_phi()
-    weights_path = output_subdir("fusion_dgp") / "fusion_dgp_phi.pt"
+    weights_path = output_subdir("tier3_dgp") / "tier3_dgp_phi.pt"
     torch.save(phi.state_dict(), weights_path)
     print(f"Weights saved: {weights_path}")
     evaluate_phi(phi)

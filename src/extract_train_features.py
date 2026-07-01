@@ -1,5 +1,5 @@
 """
-Build the two train-split artifacts that fusion_dgp.py needs:
+Build the two train-split artifacts that tier3_dgp.py needs:
 
   artifacts/celeba_attributes_train.pt   — [N_train, 40]  float32 {0,1}
   artifacts/clip_image_features_train.pt — [N_train, 512] float32 L2-normalized
