@@ -1,5 +1,13 @@
 # CLAUDE.md
 
+## ⚠️ ALWAYS-FIRST STEP — READ THE SPEC
+
+**Before answering, planning, or implementing ANYTHING, first read
+[documents/project_specification.md](documents/project_specification.md) and confirm your
+proposal is aligned with it.** This is a hard gate, not a suggestion: no design, refactor, or
+code change is valid unless it traces back to the task, evaluation protocol, and constraints in
+that file. If a request conflicts with the spec, say so and stop before acting.
+
 ## Engineering standards
 
 Act as a senior engineer with deep expertise in software architecture, scalability, and robustness. Every change should leave the codebase cleaner than you found it — write code that a careful reviewer would approve without comment.
