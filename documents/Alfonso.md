@@ -798,6 +798,102 @@ exhausted. Run: `python src/tier2d_dgp.py` → `output/tier2d/*.csv`.
 
 ---
 
+## Phase E — Fusion Model Φ: learned Dynamic Gated Projection (`src/fusion_dgp.py` + `notebooks/fusion_dgp.ipynb`) *(this session, 2026-06-30)*
+
+### Why we built it — the spec's primary deliverable
+
+The project specification (§1, §3) requires a **trained fusion module Φ** that "replaces the rigid
+pre-SVD embedding stack with an intelligent representation fusion mechanism" and "dynamically
+re-weight[s] features based on the provided text conditions" (§3.2). Every prior tier is
+training-free; Φ is the learned method the assignment is actually graded on. We build it directly
+**on top of Tier-2d DGP**: DGP replaced CLAY's equal-weight pre-SVD step with a *closed-form*
+reference-conditioned softmax gate over each attribute's prompt stack, and its honest result (the
+sharp closed-form gate did not beat its own uniform baseline, yet the per-query re-weighting
+signal was real) is exactly the evidence that a **learned** gate is the right next step.
+
+### What it is based on (honest originality framing)
+
+The primitives are all published — and the report must say so:
+- Tangent-space sandwich (Log/Exp at the intrinsic mean μ) — Fletcher PGA / GDE (Berasi 2025).
+- Modality-gap centering (Step 0) — Liang et al. 2022, reused from enhanced-Tier-0 FIX 1.
+- Orthogonal-complement negation — Oldfield et al. 2023 / Alhamoud et al. 2025.
+- InfoNCE with hard negatives — van den Oord 2018; the CLIP training lineage.
+- Cross-attention — standard.
+
+**The original contribution is the composition, not any primitive:** a *reference-conditioned
+cross-attention that structurally replaces SVD subspace construction over the per-attribute prompt
+stack*, feeding a manifold-correct geodesic-add/rejection operator at the shared global μ — and Φ
+is the **learned generalization of our own closed-form DGP gate**. No cited CIR paper (Combiner,
+CAFF, TIRG, GeneCIS) positions attention as an SVD-substitute conditioned on the reference and
+wired into a guaranteed-orthogonal rejection. Claim = "novel composition," never "novel mechanism"
+(matches FusionModelGuide.md §5).
+
+### The architecture (forward pass — fixed-where-DGP-is-fixed, learned-where-DGP-hand-codes)
+
+```
+Step 0 (fixed):   t̂_i = normalize(t_i − μ_txt)                       # modality-gap centering
+Step 1 (LEARNED): h_ref = v_ref + MLP_ref(v_ref)                    # residual MLP, zero-init tail (≈ identity)
+                  c_a   = CrossAttn(query=h_ref, key=T̂_a, val=T̂_a) # replaces CLAY's per-condition SVD
+Step 2:           d_a   = normalize(c_a)                            # one fused direction per attribute
+Step 3 (fixed):   q_tan = Log_μ(v_ref) + Σ_{a∈T+} α·d_a
+                  for b∈T−: q_tan −= (q_tan·d_b) d_b                # row-wise orthogonal rejection
+                  q     = normalize(Exp_μ(q_tan))                    # back to the sphere → cosine ranking
+```
+
+Only Step 1–2 (the gate) is learned; Step 0 and Step 3 are copied verbatim from `tier2d_dgp.py`,
+so an **untrained Φ ≈ DGP** — a clean ablation anchor. One **shared** `nn.MultiheadAttention`
+(d=512, 4 heads) serves both polarities by default (separate-weights is an ablation). **~1.3M
+trainable params; CLIP fully frozen.** Verified: forward emits unit queries, untrained Φ already
+scores `+Mustache` R@10≈0.176 on the test split (geometry wired correctly).
+
+### Training (InfoNCE, train split only, mirrors the eval GT protocol)
+
+- **Synthetic query generator** (`QueryGenerator`): sample reference `r`; `T+` = attrs r HAS, `T−`
+  = attrs r LACKS; **positives** = train images strictly satisfying T+/T− AND Hamming ≤ 2 from `r`
+  on the remaining attributes (identical to the eval GT rule, spec §3.1.1); **hard negatives** =
+  train images satisfying T+ but violating ≥1 T− (the images Tier-0 wrongly retrieves — the only
+  negatives with a meaningful gradient). Verified: ~49/50 sampled queries are valid.
+- **Loss:** multi-positive InfoNCE, τ=0.07, AdamW lr=1e-4 wd=1e-2, cosine schedule, 30 epochs,
+  64 queries/step. Gradients verified finite and flowing.
+- **Numerical safety:** ‖q_tan‖ kept below π/2 (GDE App. C.1) so Exp_μ doesn't wrap the sphere.
+
+### Deliverables
+
+- **`notebooks/fusion_dgp.ipynb`** — the graded artifact: a self-contained Colab notebook (no
+  `src/` imports, no `transformers`) that loads the cached tensors, defines the manifold ops, Φ,
+  the query generator, the InfoNCE training loop (+ learning curve + checkpoint), the 14-query
+  eval harness (metric code identical to `src/eval.py`), the verdict-vs-baselines cell, and the
+  ablation cell. Validated end-to-end against the real artifacts on CPU (training cell excepted —
+  CPU is too slow; it is meant to run on a Colab T4).
+- **`src/fusion_dgp.py`** — tracked importable mirror (`FusionPhi`, `QueryGenerator`, `info_nce`,
+  `train_phi`, `make_get_ranking`, `evaluate_phi`) so the eval can run through `src/eval.py`
+  locally and write `output/fusion_dgp/` CSVs comparable row-for-row to every tier.
+
+### How to run on Colab (and the mandatory tensors)
+
+1. Drive folder `MyDrive/dlproject/artifacts/` with the uploaded tensors; `Evaluation/` with the JSON.
+2. **MANDATORY for training:** `clip_image_features_train.pt` [162770,512], `celeba_attributes_train.pt`
+   [162770,40], `clip_attr_prompt_bank.pt` [40,60,512], `visual_directions.pt` (→ μ).
+   **MANDATORY for eval:** `clip_image_features_test.pt` [19962,512], `celeba_attributes_test.pt`,
+   `celeba_evaluation.json`. **NOT needed:** raw CelebA images, `transformers` (CLIP never called).
+3. GPU runtime (T4 enough; train DB ~330 MB fp32 fits in VRAM). Set `ARTIFACTS_DIR`, Run-all.
+4. **Testing on the GT (total accuracy):** the eval cell builds `q = Φ(test_feat[s], T+stacks,
+   T−stacks)` per source, cosine-scores the frozen test DB (source excluded), computes R@K/P@K
+   averaged over sources → per-query rows → MEAN. Headline = **beat Tier-0 (R@10=0.1048) and
+   simple CLAY-rotH (R@10=0.0541)** (spec §3.2 step 3, mandatory); stretch = beat the DGP gate
+   (0.1777) and enhanced-T0 (0.1755); negation queries (`-Male,-Mustache`) R@5 > 0 = learned
+   negation works.
+
+### Spec compliance (re-confirmed)
+
+Replaces the pre-SVD stack ✓ (cross-attention is the learned substitute); dynamic text re-weighting
+✓; multiple textual conditions per polarity ✓; +/− interaction defined ✓; CLIP frozen / DB built
+once ✓ (§3.2 step 2); training-based strategy explicitly allowed ✓ (§3.2); built from scratch ✓
+(§6); single Colab notebook deliverable ✓ (§4). Run: open `notebooks/fusion_dgp.ipynb` on Colab,
+or `python src/fusion_dgp.py` locally (slow on CPU).
+
+---
+
 ## TODO
 
 - [x] Confirm the "mandatory 12" queries vs. the 14 in the JSON — resolved: evaluate all 14
@@ -822,8 +918,11 @@ exhausted. Run: `python src/tier2d_dgp.py` → `output/tier2d/*.csv`.
       stack, replacing CLAY's equal-weight SVD (spec §3.2). Best config (τ→∞ uniform, centered,
       α1.0) MEAN R@10=0.1777, just past the enhanced-T0 bar; sharp closed-form gate underperforms
       uniform → motivates the learned fusion model Φ. Outputs: `output/tier2d/`.
-- [ ] **Next: fusion model Φ** — learned cross-attention replacing DGP's closed-form gate over the
-      same prompt stacks, InfoNCE-trained, same geodesic skeleton. Bar to beat: 0.1777.
+- [x] **Fusion model Φ** (`src/fusion_dgp.py` + `notebooks/fusion_dgp.ipynb`): learned
+      cross-attention replacing DGP's closed-form gate over the same prompt stacks, InfoNCE-trained,
+      same geodesic skeleton. ~1.3M params, CLIP frozen. Notebook validated end-to-end on CPU
+      (training meant for Colab T4). Mandatory bar: beat Tier-0 (0.1048) + CLAY-rotH (0.0541);
+      stretch: beat DGP gate (0.1777). **Pending: run training on Colab and record results.**
 - [ ] (Optional) Tier-2d rank-k dynamic weighted-PCA variant before concluding the closed-form gate is exhausted.
 - [ ] (Optional, report only) α-sweep ablation curve for Tier-0 on centered config.
 - [ ] **Next: Track S (Tier-2a subspace)** — `src/tier2a_subspace.py`. Asymmetric +/−
