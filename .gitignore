@@ -1,20 +1,3 @@
-<<<<<<< HEAD
-
-.env
-
-celeba/
-celeba.zip
-*.zip
-
-
-artifacts/
-*.pt
-
-
-.ipynb_checkpoints/
-__pycache__/
-*.pyc
-=======
 # Python
 __pycache__/
 *.py[cod]
@@ -35,11 +18,13 @@ env/
 .ipynb_checkpoints/
 *.ipynb
 
-# PyTorch artifacts (large binary tensors — extracted in Colab, not committed)
+# PyTorch artifacts (large binary tensors — not committed)
 artifacts/*.pt
 
 # Dataset (never commit raw images or attribute files)
 celeba/
+celeba.zip
+*.zip
 
 # IDE
 .vscode/
@@ -54,4 +39,3 @@ Thumbs.db
 # Secrets / env
 .env
 *.env
->>>>>>> 76a6805d5fb14858c904c3a94d367b1b53664043

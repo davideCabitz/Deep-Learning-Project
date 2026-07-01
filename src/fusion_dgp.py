@@ -357,5 +357,9 @@ def evaluate_phi(model: FusionPhi, ks=(1, 5, 10), save: bool = True, tag: str = 
 
 
 if __name__ == "__main__":
+    from results_saver import output_subdir
     phi = train_phi()
+    weights_path = output_subdir("fusion_dgp") / "fusion_dgp_phi.pt"
+    torch.save(phi.state_dict(), weights_path)
+    print(f"Weights saved: {weights_path}")
     evaluate_phi(phi)
