@@ -11,6 +11,7 @@ Act as a senior engineer with deep expertise in software architecture, scalabili
 - **Design patterns when they earn their keep.** Reach for the established pattern (factory, strategy, adapter, dependency injection, etc.) when it removes real coupling or duplication — not as decoration. Name the pattern in a comment only when it aids the reader.
 - **Robustness.** Validate inputs at boundaries, fail loudly and early with clear messages, handle the error and edge cases (empty, None, NaN, shape mismatch), and never swallow exceptions silently. Make illegal states unrepresentable where you can.
 - **Scalability & clarity.** Prefer clear, well-named seams over clever one-liners. Keep functions small and cohesive; keep public surfaces minimal. Choose data structures and algorithms that hold up as inputs grow.
+- **MANDATORY REQUIREMENT** Everything you propose must follow what's in documents\project_specification.md. Before implementing or planning something you should check if your propose is linear with what's wrote in the project specification.
 
 ### Zero tolerance for code smell
 
