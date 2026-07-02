@@ -319,9 +319,9 @@ conclusions.)
 | P | Work item | Depends on | GPU-h | Rationale for its slot |
 |---|---|---|---|---|
 | **P0** | Per-source hit-matrix dump + stats module (Wilson, paired bootstrap, McNemar+Holm); run on the **existing** Tier-4 A/B results | — | ~0 | Highest value per unit cost in the project: upgrades already-obtained results to report-grade claims before any new method work. |
-| **P1** | CD-Bayes Stage A′ = C1+C2+C3, closed-form; ablate each (τ on/off, tree vs independent, conditioned vs raw tail) | P0 (stats ready to judge it) | ~0 (CPU) | Attacks the lipstick pathology and the calibration debt with zero training risk; every later comparison stands on this floor. |
-| **P2** | C4 (λ-cosine) + C5 (QB-Norm), each ablated in isolation on Stage A′ | P1 | ~0 | Two training-free add-ons; C4 is the cheap R@1 play. |
-| **P3** | Stage B′: LambdaLoss Φ on Stage A′, q_v gate on/off, **3 seeds**; stats pipeline on all runs | P1 (floor), P0 (stats) | ~5–8 | The committed trio (seeds / q_v ablation / top-heavy loss) in one batched VM job; single-run→multi-seed upgrade for every trained claim. |
+| **P1** | **[implemented — pending run]** CD-Bayes Stage A′ = C1+C2+C3, closed-form; ablate each (τ on/off, tree vs independent, conditioned vs raw tail) — `src/tier5_cdbayes.py` rows `A_tier4repro…A_C1C2C3` | P0 (stats ready to judge it) | ~0 (CPU) | Attacks the lipstick pathology and the calibration debt with zero training risk; every later comparison stands on this floor. |
+| **P2** | **[implemented — pending run]** C4 (λ-cosine) + C5 (QB-Norm), each ablated in isolation on Stage A′ — rows `Aprime_C4/C5/C4C5`, scalars grid-tuned on synthetic TRAIN queries | P1 | ~0 | Two training-free add-ons; C4 is the cheap R@1 play. |
+| **P3** | **[implemented — pending run]** Stage B′: LambdaLoss Φ on Stage A′, q_v gate on/off, **3 seeds** — rows `Bprime_*` (stats pipeline still P0) | P1 (floor), P0 (stats) | ~5–8 | The committed trio (seeds / q_v ablation / top-heavy loss) in one batched VM job; single-run→multi-seed upgrade for every trained claim. |
 | **P4** | GT generator + custom-query families; evaluate Stage A′/B′ (+ Tier-4 as baseline) | P0 | ~0–1 | Breadth the spec explicitly invites; zero retraining needed thanks to amortized Φ. |
 | **P5** | AwA2 port (dataset strategy, features, labels, GT, eval) | P4 (generator) | ~1–2 | Generalization evidence; bounded scope, honest caveat pre-written. |
 | **P6** | Notebook assembly: methodology math, ledger tables with CIs, learning curves, qualitative successes/failures, honest-calls section | everything | ~0 | Continuous — every P-item lands as a notebook section on completion, not in a final crunch. |
@@ -329,6 +329,30 @@ conclusions.)
 Budget: ~7–11 GPU-h allocated of ~38.7 remaining → **~28 GPU-h reserve** for re-runs and
 surprises. If evidence forces triage, the cut order is P5 → extra P4 families → C5; P0–P3
 are not cuttable — they carry the paper-grade claims.
+
+### P1–P3 implementation status (2026-07-02, pending the VM run)
+
+`src/tier5_cdbayes.py` implements the full matrix in one VM job (`python src/tier5_cdbayes.py`,
+results bundled for `scripts/pull_tier5_cdbayes_results.ps1`; unit checks in
+`test/test_tier5_cdbayes.py`). Each ablation row maps to the Part-II failure mode it tests:
+
+| Ablation row | Components | Failure mode it tests / expected evidence |
+|---|---|---|
+| `A_tier4repro` | all off | parity anchor — must equal Tier-4 Stage A (hard invariant, asserted at startup) |
+| `A_C1` | C1 | (ii) miscalibration — gains should concentrate on rare/imbalanced attrs (`+Mustache`, `-Young`) |
+| `A_C1C2` | C1+C2 | (i) independence — the lipstick composite and `+Chubby,-Young` are the diagnostic queries |
+| `A_C1C2C3` = A′ core | C1+C2+C3 | (i) 2nd order — negation identity (`-Male,-Mustache`) via conditioned tails |
+| `Aprime_C4` | A′ core + λ·cos | R@1 recovery with a non-learned identity channel (λ TRAIN-tuned; λ=0 ⇒ C4 earns nothing) |
+| `Aprime_C5` | A′ core + QB-Norm | (v) hubness — broad small gains rather than query-specific ones |
+| `Aprime_C4C5` = full A′ | A′ core + C4 + C5 | the full training-free operating point |
+| `Bprime_listnet` | Φ(ListNet) on A′ core | loss-change control (1 seed — direction, not variance) |
+| `Bprime_lambdaloss` | Φ(LambdaLoss) on A′ core, 3 seeds | (iii) flat target mass — R@1 must recover vs Tier-4 Stage B |
+| `Bprime_lambdaloss_noqv` | + `--no-qv`, 3 seeds | (iv) CLIP-channel color bias — hair/makeup queries must recover if the hypothesis holds |
+
+Design notes locked into the script: B′ trains on the **A′ core** score (C1+C2+C3, no C4/C5)
+so the q_v on/off comparison isolates the learned CLIP channel; seeds default to 3 on the
+LambdaLoss rows and 1 on the ListNet control to stay ≤ 8 GPU-h (≈ 6.5–7.5 expected;
+`--seeds 2` is the trim lever, `--full-seeds` the upgrade lever).
 
 **Definition of done** (traces to the rubric, §4): one Colab notebook (§4) containing the
 full tier ledger with intervals (empirical performance + thoroughness), the CD-Bayes

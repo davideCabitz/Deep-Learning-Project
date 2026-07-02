@@ -34,18 +34,9 @@ See FinalDestination.md §4.A for the full method derivation and roadmap.
 from __future__ import annotations
 
 import argparse
-import tarfile
 import time
 from dataclasses import dataclass, replace
 from pathlib import Path
-
-try:                                        # optional: only for the training-curve PNG
-    import matplotlib
-    matplotlib.use("Agg")                   # headless: render to file, never open a window
-    import matplotlib.pyplot as plt
-    HAVE_MPL = True
-except ModuleNotFoundError:
-    HAVE_MPL = False
 
 import torch
 import torch.nn as nn
@@ -53,28 +44,18 @@ import torch.nn.functional as F
 
 from data_loader import ATTRIBUTE_NAMES, ATTR_TO_IDX, _get_artifacts_dir
 from clip_features import load_image_features, FEATURE_DIM
-from eval import parse_query, evaluate_query, format_results_table, load_eval_json, find_eval_json
+from eval import format_results_table, load_eval_json, find_eval_json
 from results_saver import save_results_csv, output_subdir
 from tier1_GDE import _load_train_features, _load_train_attributes
 from tier3_dgp import PhiConfig, QueryGenerator
 from tier3_train_utils import assert_db_frozen
+from vm_pipeline import (bundle_results, evaluate_scorer, log, query_indices,
+                         save_training_curve, set_log_file)
 
 
 N_ATTR = 40
 EPS = 1e-4          # posterior clamp — keeps log p / log(1−p) finite and bounded (≈ ±9.2)
 TAIL_FLOOR = 1e-30  # P(K≤2) floor before log — pure numerical guard, never rank-relevant
-TOP_K_KEEP = 100    # rankings cached to top-100: metrics need K ≤ 10 (spec §3.1.3)
-
-_LOG_FILE: Path | None = None
-
-
-def log(msg: str) -> None:
-    # Timestamped, flushed, tee'd to the run log — progress must be visible live over SSH.
-    line = f"[{time.strftime('%H:%M:%S')}] {msg}"
-    print(line, flush=True)
-    if _LOG_FILE is not None:
-        with open(_LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(line + "\n")
 
 
 # ---------------------------------------------------------------------------
@@ -200,15 +181,6 @@ def hamming_tail_log(p_ref: torch.Tensor, p_db: torch.Tensor, hamming_max: int) 
     return sum(states).clamp_min(TAIL_FLOOR).log()
 
 
-def query_indices(query_str: str) -> tuple[list[int], list[int], list[int]]:
-    # Parse a query into (positive idx, negative idx, free idx) over the 40 attributes.
-    pos, neg = parse_query(query_str)
-    pi = [ATTR_TO_IDX[a] for a in pos]
-    ni = [ATTR_TO_IDX[b] for b in neg]
-    free = [c for c in range(N_ATTR) if c not in set(pi) | set(ni)]
-    return pi, ni, free
-
-
 # ---------------------------------------------------------------------------
 # Stage B — the fusion module Φ
 # ---------------------------------------------------------------------------
@@ -278,35 +250,6 @@ def listnet_scores(scores: torch.Tensor, n_pos: int, tau: float) -> torch.Tensor
 
 
 # ---------------------------------------------------------------------------
-# Shared chunked evaluation driver (official harness underneath)
-# ---------------------------------------------------------------------------
-
-def _evaluate_scorer(name: str, score_chunk, gt_list: list[dict], cfg: Tier4Config) -> dict:
-    # Score every JSON query through eval.evaluate_query (the project ruler), computing
-    # score matrices in source-chunks for GPU efficiency. score_chunk(srcs, pi, ni, free)
-    # → [S, N]. Rankings cached to top-100 (metrics need K ≤ 10). Self-exclusion per §5.
-    results = {}
-    t0 = time.time()
-    for qi, entry in enumerate(gt_list):
-        pi, ni, free = query_indices(entry["query"])
-        srcs = [int(s) for s in entry["ground_truth"].keys()]
-        rankings: dict[int, list[int]] = {}
-        for lo in range(0, len(srcs), cfg.chunk):
-            chunk = srcs[lo:lo + cfg.chunk]
-            scores = score_chunk(chunk, pi, ni, free)                    # [S, N]
-            rows = torch.arange(len(chunk), device=scores.device)
-            cols = torch.as_tensor(chunk, device=scores.device)
-            scores[rows, cols] = float("-inf")                           # §5 self-exclusion
-            top = torch.topk(scores, TOP_K_KEEP, dim=1).indices.cpu()
-            rankings.update({s: top[j].tolist() for j, s in enumerate(chunk)})
-        results[entry["query"]] = evaluate_query(entry["ground_truth"], rankings.__getitem__)
-        r = results[entry["query"]]
-        log(f"  [{name}] {qi + 1:02d}/{len(gt_list)}  {entry['query']:<46s}"
-            f"  R@5={r['recall@5']:.4f}  ({time.time() - t0:.0f}s)")
-    return results
-
-
-# ---------------------------------------------------------------------------
 # Stage A — closed-form Bayes scorer (training-free given probes)
 # ---------------------------------------------------------------------------
 
@@ -326,7 +269,7 @@ def make_stage_a_chunk(feats: torch.Tensor, P: torch.Tensor, cfg: Tier4Config):
 def make_get_ranking(query_str: str, feats: torch.Tensor, P: torch.Tensor,
                      cfg: Tier4Config, model: BayesPhi | None = None):
     # CONTRACT §5/§7 seam — curry one query into get_ranking(src_idx) (single-source path;
-    # bulk evaluation goes through _evaluate_scorer's chunked driver instead).
+    # bulk evaluation goes through vm_pipeline.evaluate_scorer's chunked driver instead).
     pi, ni, free = query_indices(query_str)
     chunk_fn = make_stage_a_chunk(feats, P, cfg) if model is None \
         else make_stage_b_chunk(model, feats, P, cfg)
@@ -458,27 +401,21 @@ def init_sanity_check(model: BayesPhi, feats, P, cfg, query_str: str, src: int) 
 # Results bundle — carry everything back from the VM clone to any local clone
 # ---------------------------------------------------------------------------
 
-def bundle_results(out_dir: Path) -> Path:
-    # One tar.gz with repo-root-relative arcnames (output/tier4_bayes/*, the probe cache),
-    # so extracting at any clone's root restores results in place. Printed scp hint uses
-    # the VM coordinates from documents/Tier3_Variations_Report.md §4.
+def bundle_tier4_results(out_dir: Path) -> Path:
+    # Tier-4 bundle (output/tier4_bayes/* + the probe cache) via the shared bundler.
+    # Printed scp hint uses the VM coordinates from documents/Tier3_Variations_Report.md §4.
     root = Path(__file__).parent.parent
-    bundle = root / "output" / "tier4_bayes_bundle.tar.gz"
-    with tarfile.open(bundle, "w:gz") as tar:
-        for p in sorted(out_dir.rglob("*")):
-            if p.is_file():                                   # files only — add(dir) would recurse and duplicate
-                tar.add(p, arcname=str(p.relative_to(root)))
-        probe_path = _get_artifacts_dir() / "tier4_probe.pt"
-        if probe_path.exists():
-            tar.add(probe_path, arcname=str(probe_path.relative_to(root)))
-    log(f"Bundle written: {bundle}")
-    log("Pull it back to your local clone with (from local repo root):")
-    log("  powershell scripts/pull_tier4_bayes_results.ps1")
-    log("  # or manually:")
-    log("  scp -P 5040 disi@lab-d2fdded3-9ba4-4188-80fa-16c27a4cd022.westeurope.cloudapp.azure.com:"
-        "~/Deep-Learning-Project/output/tier4_bayes_bundle.tar.gz .")
-    log('  tar -xzf tier4_bayes_bundle.tar.gz   # extracts output/tier4_bayes/* in place')
-    return bundle
+    return bundle_results(
+        root, root / "output" / "tier4_bayes_bundle.tar.gz",
+        [out_dir, _get_artifacts_dir() / "tier4_probe.pt"],
+        pull_hints=[
+            "Pull it back to your local clone with (from local repo root):",
+            "  powershell scripts/pull_tier4_bayes_results.ps1",
+            "  # or manually:",
+            "  scp -P 5040 disi@lab-d2fdded3-9ba4-4188-80fa-16c27a4cd022.westeurope.cloudapp.azure.com:"
+            "~/Deep-Learning-Project/output/tier4_bayes_bundle.tar.gz .",
+            "  tar -xzf tier4_bayes_bundle.tar.gz   # extracts output/tier4_bayes/* in place",
+        ])
 
 
 # ---------------------------------------------------------------------------
@@ -486,7 +423,6 @@ def bundle_results(out_dir: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    global _LOG_FILE
     ap = argparse.ArgumentParser(description="Tier-4 Bayes-Phi: probes -> Stage A -> Stage B")
     ap.add_argument("--quick", action="store_true", help="CPU smoke run (tiny epochs, 2 queries)")
     ap.add_argument("--skip-stage-b", action="store_true", help="probes + Stage A only")
@@ -503,7 +439,7 @@ def main() -> None:
 
     dev = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
     out_dir = output_subdir("tier4_bayes")
-    _LOG_FILE = out_dir / "train_log.txt"
+    set_log_file(out_dir / "train_log.txt")
     tag = "quick" if args.quick else "full"
     log(f"Device: {dev}" + (f"  GPU: {torch.cuda.get_device_name(0)}" if dev.type == "cuda" else ""))
 
@@ -520,12 +456,12 @@ def main() -> None:
     # --- Stage A: closed-form Bayes scorer ------------------------------------
     log("Stage A — closed-form Bayes scorer")
     assert_db_frozen(feats, make_get_ranking(gt_list[0]["query"], feats, P, cfg))
-    results_a = _evaluate_scorer("A", make_stage_a_chunk(feats, P, cfg), gt_list, cfg)
+    results_a = evaluate_scorer("A", make_stage_a_chunk(feats, P, cfg), gt_list, cfg.chunk)
     print("\n" + format_results_table(results_a))
     save_results_csv(results_a, out_dir / f"tier4_bayes_stageA_{tag}.csv")
 
     if args.skip_stage_b:
-        bundle_results(out_dir)
+        bundle_tier4_results(out_dir)
         return
 
     # --- Stage B: amortized fusion Φ -------------------------------------------
@@ -538,16 +474,11 @@ def main() -> None:
     log(f"  init sanity: max |Phi_init - StageA| = {diff:.2e} (float32 noise expected)")
 
     torch.save(model.state_dict(), out_dir / "tier4_bayes_phi.pt")
-    if HAVE_MPL and curve:
-        plt.figure(figsize=(6, 4))
-        plt.plot(range(1, len(curve) + 1), curve)
-        plt.xlabel("epoch"), plt.ylabel("ListNet loss"), plt.title("Tier-4 Bayes-Phi training")
-        plt.tight_layout()
-        plt.savefig(out_dir / "tier4_training_curve.png", dpi=120)
-        plt.close()
+    save_training_curve(curve, out_dir / "tier4_training_curve.png",
+                        "Tier-4 Bayes-Phi training", "ListNet loss")
 
     assert_db_frozen(feats, make_get_ranking(gt_list[0]["query"], feats, P, cfg, model=model))
-    results_b = _evaluate_scorer("B", make_stage_b_chunk(model, feats, P, cfg), gt_list, cfg)
+    results_b = evaluate_scorer("B", make_stage_b_chunk(model, feats, P, cfg), gt_list, cfg.chunk)
     print("\n" + format_results_table(results_b))
     save_results_csv(results_b, out_dir / f"tier4_bayes_stageB_{tag}.csv")
 
@@ -556,7 +487,7 @@ def main() -> None:
     log(f"MEAN R@5 — Stage A {mean_a:.4f}  |  Stage B {mean_b:.4f}  "
         f"|  tier3_combined baseline 0.1576")
 
-    bundle_results(out_dir)
+    bundle_tier4_results(out_dir)
 
 
 if __name__ == "__main__":
