@@ -1,0 +1,3 @@
+[11:19:26] Device: cpu
+[11:19:26] Training InversionMLP g...
+[11:19:28] Stage: 790,016 params (g only), 2 epochs x 50 steps x 64 queries
