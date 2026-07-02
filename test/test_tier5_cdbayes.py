@@ -127,16 +127,19 @@ def test_sum_product_vs_enumeration():
     assert torch.allclose(got_c, want_c, atol=1e-5), "constraint term mismatch"
 
     probs = torch.softmax(joint, dim=1)
-    want_m = torch.stack(
-        [sum(probs[:, j] for j, bits in
-             enumerate(itertools.product([0, 1], repeat=n)) if bits[a] == 1)
+    zero = torch.zeros(probs.shape[0])                       # tensor start: a clamped node can
+    want_m = torch.stack(                                    # match NO assignment (empty sum)
+        [sum((probs[:, j] for j, bits in
+              enumerate(itertools.product([0, 1], repeat=n)) if bits[a] == 1), zero)
          for a in range(n)], dim=1)
     assert torch.allclose(tree_marginals(tree, log_u), want_m, atol=1e-5), "marginal mismatch"
 
     cond = tree_marginals(tree, clamp_evidence(log_u, pi, ni))         # conditioned marginals
+    keep_set = set(keep)
     cond_want = torch.stack(
-        [sum(probs[:, j] for j, bits in
-             enumerate(itertools.product([0, 1], repeat=n)) if bits[a] == 1 and j in set(keep))
+        [sum((probs[:, j] for j, bits in
+              enumerate(itertools.product([0, 1], repeat=n)) if bits[a] == 1 and j in keep_set),
+             zero)
          for a in range(n)], dim=1) / probs[:, keep].sum(dim=1, keepdim=True)
     assert torch.allclose(cond, cond_want, atol=1e-5), "conditioned marginal mismatch"
     print("[OK] 2. tree sum-product (Z, constraint, marginals) matches brute force")
