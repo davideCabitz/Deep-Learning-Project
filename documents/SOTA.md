@@ -129,6 +129,55 @@ preservation.
   https://arxiv.org/abs/2603.20554
   Newest; geometric framing of negation in the embedding space.
 
+### 5.1 Linear concept erasure (the rigorous backbone for subspace rejection)
+
+The bias/fairness lineage that formalizes "remove attribute X's linear subspace so
+the representation is invariant to X" — exactly what our orthogonal subspace rejection
+(Tier-2c) does heuristically, and what our Tier-4 attribute **probes** define discriminatively.
+
+- ⭐ **Null It Out: Guarding Protected Attributes by Iterative Nullspace Projection
+  (INLP)** (Ravfogel et al., ACL 2020) — https://arxiv.org/abs/2004.07667
+  Iteratively projects the representation onto the null-space of linear attribute
+  classifiers until the concept is linearly unrecoverable. The probe-defined,
+  guaranteed-convergence version of our subspace rejection — and the closest prior
+  to Tier-4's probe-based negation.
+
+- **Linear Adversarial Concept Erasure (R-LACE)** (Ravfogel et al., ICML 2022) —
+  https://arxiv.org/abs/2201.12091
+  Casts erasure as a linear minimax game; finds the minimal subspace whose removal
+  blocks linear prediction.
+
+- ⭐ **LEACE: Perfect Linear Concept Erasure in Closed Form** (Belrose et al.,
+  NeurIPS 2023) — https://arxiv.org/abs/2306.03819
+  Closed-form optimal linear erasure: provably blocks every linear classifier while
+  perturbing the embedding minimally. The theoretical ceiling for "−X = be invariant
+  to the X axis."
+
+### 5.2 Negation as vector arithmetic / relevance feedback
+
+- ⭐ **Editing Models with Task Arithmetic** (Ilharco et al., ICLR 2023) —
+  https://arxiv.org/abs/2212.04089
+  Negating a "task vector" (a direction in weight space) removes a capability — the
+  formal precedent for our Tier-0 additive/subtractive latent arithmetic and its
+  blunt-subtraction failure mode.
+
+- **Relevance Feedback in Information Retrieval (Rocchio)** (Rocchio, 1971) — in
+  *The SMART Retrieval System*, Salton (ed.), Prentice-Hall (no arXiv; classic book
+  chapter). Move the query away from non-relevant examples — the IR ancestor of
+  Tier-4's β-weighted discriminative negation penalty.
+
+### 5.3 Concept erasure in generative VLMs (parallel "negation = concept removal")
+
+Generation-side, but the "erase a concept / negative guidance" framing is the same
+operation from the other direction; useful to show the idea is broad.
+
+- **Erasing Concepts from Diffusion Models (ESD)** (Gandikota et al., ICCV 2023) —
+  https://arxiv.org/abs/2303.07345
+- **Ablating Concepts in Text-to-Image Diffusion Models** (Kumari et al., ICCV 2023) —
+  https://arxiv.org/abs/2303.13516
+- **Unified Concept Editing in Diffusion Models (UCE)** (Gandikota et al., WACV 2024) —
+  https://arxiv.org/abs/2308.14761
+
 ## 6. Compositionality benchmarks (to frame "why this is hard")
 
 - **When and Why VLMs Behave like Bags-of-Words (ARO)** (Yuksekgonul et al., ICLR
