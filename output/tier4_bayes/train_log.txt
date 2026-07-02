@@ -1,0 +1,87 @@
+[08:54:08] Device: cuda  GPU: Tesla T4
+[08:54:08] Training attribute probes (Stage 0)...
+[08:54:13]   probe epoch 01/10  BCE=0.5258
+[08:54:13]   probe epoch 02/10  BCE=0.3826
+[08:54:13]   probe epoch 03/10  BCE=0.3419
+[08:54:13]   probe epoch 04/10  BCE=0.3202
+[08:54:13]   probe epoch 05/10  BCE=0.3059
+[08:54:13]   probe epoch 06/10  BCE=0.2959
+[08:54:13]   probe epoch 07/10  BCE=0.2885
+[08:54:13]   probe epoch 08/10  BCE=0.2830
+[08:54:13]   probe epoch 09/10  BCE=0.2788
+[08:54:13]   probe epoch 10/10  BCE=0.2755
+[08:54:13]   Saved: /home/disi/DLproject_VM/Deep-Learning-Project/artifacts/tier4_probe.pt
+[08:54:13]   probe test acc: mean 0.8846  min 0.6969 (Big_Lips)
+[08:54:13] Stage A — closed-form Bayes scorer
+[08:54:15]   [A] 01/14  +Smiling                                        R@5=0.1651  (2s)
+[08:54:16]   [A] 02/14  +Eyeglasses                                     R@5=0.4221  (3s)
+[08:54:18]   [A] 03/14  -Heavy_Makeup                                   R@5=0.1703  (4s)
+[08:54:18]   [A] 04/14  +Male                                           R@5=0.2734  (4s)
+[08:54:20]   [A] 05/14  -Young                                          R@5=0.1750  (6s)
+[08:54:22]   [A] 06/14  +Blond_Hair                                     R@5=0.2516  (8s)
+[08:54:22]   [A] 07/14  +Mustache                                       R@5=0.1329  (8s)
+[08:54:24]   [A] 08/14  -Young                                          R@5=0.1750  (10s)
+[08:54:24]   [A] 09/14  +Eyeglasses, +Smiling                           R@5=0.3399  (10s)
+[08:54:25]   [A] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.2978  (11s)
+[08:54:25]   [A] 11/14  -Male, -Mustache                                R@5=0.2222  (11s)
+[08:54:25]   [A] 12/14  +Chubby, -Young                                 R@5=0.1404  (11s)
+[08:54:25]   [A] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.7848  (11s)
+[08:54:25]   [A] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (11s)
+[08:54:25] Stage B — amortized fusion Phi (Bayes-init, ListNet)
+[08:54:25] Stage B: 913,017 params, 40 epochs x 101 steps x 64 queries
+[08:56:27]   epoch 01/40  ListNet=2.9290  kappa=1.007  eta=79.0min
+[08:58:28]   epoch 02/40  ListNet=2.8251  kappa=1.010  eta=77.0min
+[09:00:27]   epoch 03/40  ListNet=2.7882  kappa=1.013  eta=74.4min
+[09:02:26]   epoch 04/40  ListNet=2.7776  kappa=1.015  eta=72.2min
+[09:04:26]   epoch 05/40  ListNet=2.7535  kappa=1.017  eta=70.0min
+[09:06:23]   epoch 06/40  ListNet=2.7448  kappa=1.019  eta=67.8min
+[09:08:23]   epoch 07/40  ListNet=2.7415  kappa=1.020  eta=65.8min
+[09:10:24]   epoch 08/40  ListNet=2.7283  kappa=1.022  eta=63.9min
+[09:12:25]   epoch 09/40  ListNet=2.7307  kappa=1.023  eta=62.0min
+[09:14:25]   epoch 10/40  ListNet=2.7255  kappa=1.024  eta=60.0min
+[09:16:24]   epoch 11/40  ListNet=2.7092  kappa=1.026  eta=58.0min
+[09:18:26]   epoch 12/40  ListNet=2.7066  kappa=1.027  eta=56.0min
+[09:20:28]   epoch 13/40  ListNet=2.7067  kappa=1.028  eta=54.1min
+[09:22:29]   epoch 14/40  ListNet=2.7034  kappa=1.028  eta=52.1min
+[09:24:32]   epoch 15/40  ListNet=2.7005  kappa=1.029  eta=50.2min
+[09:26:31]   epoch 16/40  ListNet=2.6964  kappa=1.029  eta=48.2min
+[09:28:33]   epoch 17/40  ListNet=2.6968  kappa=1.030  eta=46.2min
+[09:30:32]   epoch 18/40  ListNet=2.6871  kappa=1.031  eta=44.1min
+[09:32:32]   epoch 19/40  ListNet=2.6864  kappa=1.031  eta=42.1min
+[09:34:32]   epoch 20/40  ListNet=2.6942  kappa=1.032  eta=40.1min
+[09:36:35]   epoch 21/40  ListNet=2.6918  kappa=1.032  eta=38.1min
+[09:38:33]   epoch 22/40  ListNet=2.6862  kappa=1.032  eta=36.1min
+[09:40:32]   epoch 23/40  ListNet=2.6846  kappa=1.033  eta=34.1min
+[09:42:31]   epoch 24/40  ListNet=2.6772  kappa=1.033  eta=32.1min
+[09:44:29]   epoch 25/40  ListNet=2.6790  kappa=1.033  eta=30.0min
+[09:46:30]   epoch 26/40  ListNet=2.6641  kappa=1.033  eta=28.0min
+[09:48:30]   epoch 27/40  ListNet=2.6767  kappa=1.034  eta=26.0min
+[09:50:30]   epoch 28/40  ListNet=2.6768  kappa=1.034  eta=24.0min
+[09:52:27]   epoch 29/40  ListNet=2.6796  kappa=1.034  eta=22.0min
+[09:54:28]   epoch 30/40  ListNet=2.6763  kappa=1.034  eta=20.0min
+[09:56:28]   epoch 31/40  ListNet=2.6808  kappa=1.034  eta=18.0min
+[09:58:27]   epoch 32/40  ListNet=2.6722  kappa=1.034  eta=16.0min
+[10:00:26]   epoch 33/40  ListNet=2.6692  kappa=1.034  eta=14.0min
+[10:02:25]   epoch 34/40  ListNet=2.6678  kappa=1.034  eta=12.0min
+[10:04:26]   epoch 35/40  ListNet=2.6802  kappa=1.034  eta=10.0min
+[10:06:27]   epoch 36/40  ListNet=2.6756  kappa=1.034  eta=8.0min
+[10:08:28]   epoch 37/40  ListNet=2.6625  kappa=1.034  eta=6.0min
+[10:10:26]   epoch 38/40  ListNet=2.6731  kappa=1.034  eta=4.0min
+[10:12:24]   epoch 39/40  ListNet=2.6831  kappa=1.034  eta=2.0min
+[10:14:21]   epoch 40/40  ListNet=2.6702  kappa=1.034  eta=0.0min
+[10:14:21]   init sanity: max |Phi_init - StageA| = 0.00e+00 (float32 noise expected)
+[10:14:23]   [B] 01/14  +Smiling                                        R@5=0.1536  (2s)
+[10:14:24]   [B] 02/14  +Eyeglasses                                     R@5=0.4463  (2s)
+[10:14:25]   [B] 03/14  -Heavy_Makeup                                   R@5=0.1329  (4s)
+[10:14:26]   [B] 04/14  +Male                                           R@5=0.3555  (4s)
+[10:14:28]   [B] 05/14  -Young                                          R@5=0.1963  (6s)
+[10:14:30]   [B] 06/14  +Blond_Hair                                     R@5=0.2147  (8s)
+[10:14:30]   [B] 07/14  +Mustache                                       R@5=0.2259  (9s)
+[10:14:32]   [B] 08/14  -Young                                          R@5=0.1963  (10s)
+[10:14:32]   [B] 09/14  +Eyeglasses, +Smiling                           R@5=0.4297  (11s)
+[10:14:33]   [B] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.1995  (12s)
+[10:14:33]   [B] 11/14  -Male, -Mustache                                R@5=0.2593  (12s)
+[10:14:33]   [B] 12/14  +Chubby, -Young                                 R@5=0.2979  (12s)
+[10:14:33]   [B] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.6835  (12s)
+[10:14:33]   [B] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0588  (12s)
+[10:14:33] MEAN R@5 — Stage A 0.2596  |  Stage B 0.2811  |  tier3_combined baseline 0.1576
