@@ -1,0 +1,169 @@
+[17:26:48] Device: cuda
+[17:26:48] Training attribute probes (Stage 0)...
+[17:26:48]   probe epoch 01/10  BCE=0.6606
+[17:26:48]   probe epoch 02/10  BCE=0.5808
+[17:26:48]   probe epoch 03/10  BCE=0.5248
+[17:26:48]   probe epoch 04/10  BCE=0.4855
+[17:26:48]   probe epoch 05/10  BCE=0.4567
+[17:26:48]   probe epoch 06/10  BCE=0.4341
+[17:26:48]   probe epoch 07/10  BCE=0.4156
+[17:26:48]   probe epoch 08/10  BCE=0.3996
+[17:26:48]   probe epoch 09/10  BCE=0.3855
+[17:26:48]   probe epoch 10/10  BCE=0.3730
+[17:26:48]   Saved: /home/disi/Deep-Learning-Project/artifacts/awa2/tier4_probe.pt
+[17:26:48]   probe test acc: mean 0.8637  min 0.7504 (spots)
+[17:26:48] Fitting per-attribute temperatures (C1)...
+[17:26:49]   per-attribute  tau  ECE(before)  ECE(after):
+[17:26:49]     black                   0.378  0.1946  0.1097
+[17:26:49]     white                   0.313  0.1869  0.0440
+[17:26:49]     blue                    0.802  0.0934  0.0771
+[17:26:49]     brown                   0.483  0.1565  0.0947
+[17:26:49]     gray                    0.314  0.1922  0.0486
+[17:26:49]     orange                  0.900  0.0674  0.0460
+[17:26:49]     red                     0.678  0.0450  0.0018
+[17:26:49]     yellow                  0.842  0.1197  0.0699
+[17:26:49]     patches                 0.459  0.1474  0.0872
+[17:26:49]     spots                   0.645  0.1698  0.1444
+[17:26:49]     stripes                 0.868  0.0401  0.0608
+[17:26:49]     furry                   0.609  0.2110  0.1566
+[17:26:49]     hairless                0.620  0.2008  0.1433
+[17:26:49]     toughskin               0.214  0.2266  0.0227
+[17:26:49]     big                     0.397  0.2118  0.1213
+[17:26:49]     small                   0.338  0.2178  0.0985
+[17:26:49]     bulbous                 0.215  0.2337  0.0356
+[17:26:49]     lean                    0.220  0.2387  0.0272
+[17:26:49]     flippers                0.770  0.1333  0.1027
+[17:26:49]     hands                   0.774  0.0480  0.0438
+[17:26:49]     hooves                  0.210  0.2510  0.0645
+[17:26:49]     pads                    0.433  0.1963  0.1327
+[17:26:49]     paws                    0.180  0.2585  0.0231
+[17:26:49]     longleg                 0.335  0.2286  0.1203
+[17:26:49]     longneck                0.739  0.1791  0.1485
+[17:26:49]     tail                    0.687  0.2023  0.1550
+[17:26:49]     chewteeth               0.877  0.1188  0.1104
+[17:26:49]     meatteeth               0.239  0.2294  0.0774
+[17:26:49]     buckteeth               0.751  0.1382  0.1310
+[17:26:49]     strainteeth             0.835  0.0603  0.0472
+[17:26:49]     horns                   0.539  0.1882  0.1379
+[17:26:49]     claws                   0.229  0.2227  0.0561
+[17:26:49]     tusks                   0.837  0.0256  0.0135
+[17:26:49]     smelly                  0.292  0.1794  0.0156
+[17:26:49]     flys                    0.528  0.0561  0.0017
+[17:26:49]     hops                    0.776  0.1022  0.0778
+[17:26:49]     swims                   0.684  0.1801  0.1258
+[17:26:49]     tunnels                 0.701  0.0657  0.0317
+[17:26:49]     walks                   0.762  0.1483  0.1171
+[17:26:49]     fast                    0.652  0.1725  0.1479
+[17:26:49]     slow                    0.319  0.2152  0.0784
+[17:26:49]     strong                  0.448  0.1955  0.1216
+[17:26:49]     weak                    0.804  0.1432  0.1297
+[17:26:49]     muscle                  0.335  0.2133  0.0910
+[17:26:49]     bipedal                 0.765  0.1932  0.1628
+[17:26:49]     quadrapedal             0.782  0.1316  0.0998
+[17:26:49]     active                  0.578  0.1955  0.1442
+[17:26:49]     inactive                0.225  0.2046  0.0351
+[17:26:49]     nocturnal               0.769  0.1452  0.1324
+[17:26:49]     hibernate               0.733  0.1401  0.1192
+[17:26:49]     agility                 0.375  0.2153  0.1148
+[17:26:49]     fish                    0.409  0.2224  0.1228
+[17:26:49]     meat                    0.304  0.2238  0.0999
+[17:26:49]     plankton                0.713  0.0583  0.0218
+[17:26:49]     vegetation              0.181  0.2704  0.0651
+[17:26:49]     insects                 0.733  0.0404  0.0053
+[17:26:49]     forager                 0.248  0.2115  0.0221
+[17:26:49]     grazer                  0.277  0.2241  0.0557
+[17:26:49]     hunter                  0.341  0.2238  0.1215
+[17:26:49]     scavenger               0.853  0.0247  0.0296
+[17:26:49]     skimmer                 0.667  0.0509  0.0054
+[17:26:49]     stalker                 0.600  0.2187  0.1624
+[17:26:49]     newworld                0.473  0.2089  0.1234
+[17:26:49]     oldworld                0.913  0.0424  0.0540
+[17:26:49]     arctic                  0.798  0.1150  0.0959
+[17:26:49]     coastal                 0.733  0.1524  0.1120
+[17:26:49]     desert                  0.711  0.0435  0.0045
+[17:26:49]     bush                    0.426  0.1990  0.0880
+[17:26:49]     plains                  0.242  0.2198  0.0226
+[17:26:49]     forest                  0.251  0.2344  0.0781
+[17:26:49]     fields                  0.251  0.2308  0.0698
+[17:26:49]     jungle                  0.516  0.2046  0.1335
+[17:26:49]     mountains               0.509  0.1847  0.1310
+[17:26:49]     ocean                   0.725  0.1540  0.1114
+[17:26:49]     ground                  0.777  0.1424  0.1164
+[17:26:49]     water                   0.670  0.1806  0.1231
+[17:26:49]     tree                    0.772  0.1697  0.1480
+[17:26:49]     cave                    0.869  0.0206  0.0314
+[17:26:49]     fierce                  0.378  0.1696  0.0965
+[17:26:49]     timid                   0.417  0.1889  0.1041
+[17:26:49]     smart                   0.404  0.1864  0.1054
+[17:26:49]     group                   0.410  0.1874  0.0875
+[17:26:49]     solitary                0.325  0.2044  0.0538
+[17:26:49]     nestspot                0.322  0.2197  0.0948
+[17:26:49]     domestic                0.356  0.1943  0.0738
+[17:26:49]   mean ECE 0.1641 -> 0.0855
+[17:26:49]   Saved: /home/disi/Deep-Learning-Project/artifacts/awa2/tier5_temperatures.pt
+[17:26:49] Stage B' — BayesPhi + ListNet (Bprime_listnet, seed 0)
+[17:26:49] B' [listnet seed=0]: 1,051,392 params, 40 epochs x 18 steps x 64 queries
+[17:27:43]   epoch 01/40  listnet=2.7860  kappa=0.998  eta=35.1min
+[17:28:38]   epoch 02/40  listnet=2.7611  kappa=0.997  eta=34.4min
+[17:29:32]   epoch 03/40  listnet=2.7067  kappa=0.995  eta=33.6min
+[17:30:27]   epoch 04/40  listnet=2.6558  kappa=0.994  eta=32.7min
+[17:31:21]   epoch 05/40  listnet=2.6371  kappa=0.992  eta=31.7min
+[17:32:15]   epoch 06/40  listnet=2.6650  kappa=0.991  eta=30.8min
+[17:33:09]   epoch 07/40  listnet=2.6630  kappa=0.990  eta=29.9min
+[17:34:04]   epoch 08/40  listnet=2.6225  kappa=0.988  eta=29.0min
+[17:34:58]   epoch 09/40  listnet=2.6375  kappa=0.987  eta=28.1min
+[17:35:52]   epoch 10/40  listnet=2.6264  kappa=0.986  eta=27.1min
+[17:36:45]   epoch 11/40  listnet=2.6103  kappa=0.984  eta=26.2min
+[17:37:39]   epoch 12/40  listnet=2.5962  kappa=0.983  eta=25.3min
+[17:38:33]   epoch 13/40  listnet=2.5970  kappa=0.982  eta=24.4min
+[17:39:28]   epoch 14/40  listnet=2.5927  kappa=0.981  eta=23.5min
+[17:40:22]   epoch 15/40  listnet=2.5864  kappa=0.980  eta=22.6min
+[17:41:17]   epoch 16/40  listnet=2.5358  kappa=0.979  eta=21.7min
+[17:42:11]   epoch 17/40  listnet=2.5713  kappa=0.978  eta=20.8min
+[17:43:05]   epoch 18/40  listnet=2.5878  kappa=0.977  eta=19.9min
+[17:44:00]   epoch 19/40  listnet=2.6001  kappa=0.976  eta=19.0min
+[17:44:54]   epoch 20/40  listnet=2.5485  kappa=0.976  eta=18.1min
+[17:45:48]   epoch 21/40  listnet=2.5547  kappa=0.975  eta=17.2min
+[17:46:43]   epoch 22/40  listnet=2.5457  kappa=0.974  eta=16.3min
+[17:47:37]   epoch 23/40  listnet=2.5480  kappa=0.974  eta=15.4min
+[17:48:29]   epoch 24/40  listnet=2.5667  kappa=0.973  eta=14.4min
+[17:49:24]   epoch 25/40  listnet=2.5387  kappa=0.973  eta=13.6min
+[17:50:18]   epoch 26/40  listnet=2.5296  kappa=0.972  eta=12.6min
+[17:51:13]   epoch 27/40  listnet=2.5509  kappa=0.972  eta=11.7min
+[17:52:07]   epoch 28/40  listnet=2.5344  kappa=0.971  eta=10.8min
+[17:53:01]   epoch 29/40  listnet=2.5212  kappa=0.971  eta=9.9min
+[17:53:56]   epoch 30/40  listnet=2.5406  kappa=0.971  eta=9.0min
+[17:54:50]   epoch 31/40  listnet=2.5312  kappa=0.971  eta=8.1min
+[17:55:44]   epoch 32/40  listnet=2.5227  kappa=0.970  eta=7.2min
+[17:56:37]   epoch 33/40  listnet=2.5122  kappa=0.970  eta=6.3min
+[17:57:32]   epoch 34/40  listnet=2.5314  kappa=0.970  eta=5.4min
+[17:58:26]   epoch 35/40  listnet=2.5231  kappa=0.970  eta=4.5min
+[17:59:20]   epoch 36/40  listnet=2.5445  kappa=0.970  eta=3.6min
+[18:00:14]   epoch 37/40  listnet=2.5244  kappa=0.970  eta=2.7min
+[18:01:09]   epoch 38/40  listnet=2.4979  kappa=0.970  eta=1.8min
+[18:02:03]   epoch 39/40  listnet=2.5227  kappa=0.970  eta=0.9min
+[18:02:58]   epoch 40/40  listnet=2.5219  kappa=0.970  eta=0.0min
+[18:02:59]   [Bprime_listnet] 01/12  +stripes                                        R@5=0.9833  (0s)
+[18:02:59]   [Bprime_listnet] 02/12  -furry                                          R@5=0.8667  (0s)
+[18:02:59]   [Bprime_listnet] 03/12  +spots                                          R@5=0.9167  (0s)
+[18:02:59]   [Bprime_listnet] 04/12  +swims                                          R@5=0.8667  (0s)
+[18:02:59]   [Bprime_listnet] 05/12  +horns                                          R@5=0.9167  (0s)
+[18:02:59]   [Bprime_listnet] 06/12  +longneck                                       R@5=1.0000  (0s)
+[18:02:59]   [Bprime_listnet] 07/12  -quadrapedal                                    R@5=0.8667  (0s)
+[18:02:59]   [Bprime_listnet] 08/12  +swims & -ocean                                 R@5=0.8167  (1s)
+[18:02:59]   [Bprime_listnet] 09/12  +big & -meat                                    R@5=0.8000  (1s)
+[18:02:59]   [Bprime_listnet] 10/12  +forest & -arctic                               R@5=0.8833  (1s)
+[18:02:59]   [Bprime_listnet] 11/12  +furry & -water & +ground                       R@5=0.9500  (1s)
+[18:02:59]   [Bprime_listnet] 12/12  +meat & -domestic & +fierce                     R@5=0.9500  (1s)
+[18:02:59]   [Bprime_listnet(dump)] 01/12  +stripes                                        R@5=0.9833  (0s)
+[18:02:59]   [Bprime_listnet(dump)] 02/12  -furry                                          R@5=0.8667  (0s)
+[18:02:59]   [Bprime_listnet(dump)] 03/12  +spots                                          R@5=0.9167  (0s)
+[18:02:59]   [Bprime_listnet(dump)] 04/12  +swims                                          R@5=0.8667  (0s)
+[18:02:59]   [Bprime_listnet(dump)] 05/12  +horns                                          R@5=0.9167  (0s)
+[18:03:00]   [Bprime_listnet(dump)] 06/12  +longneck                                       R@5=1.0000  (0s)
+[18:03:00]   [Bprime_listnet(dump)] 07/12  -quadrapedal                                    R@5=0.8667  (0s)
+[18:03:00]   [Bprime_listnet(dump)] 08/12  +swims & -ocean                                 R@5=0.8167  (0s)
+[18:03:00]   [Bprime_listnet(dump)] 09/12  +big & -meat                                    R@5=0.8000  (0s)
+[18:03:00]   [Bprime_listnet(dump)] 10/12  +forest & -arctic                               R@5=0.8833  (1s)
+[18:03:00]   [Bprime_listnet(dump)] 11/12  +furry & -water & +ground                       R@5=0.9500  (1s)
+[18:03:00]   [Bprime_listnet(dump)] 12/12  +meat & -domestic & +fierce                     R@5=0.9500  (1s)

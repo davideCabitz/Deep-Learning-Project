@@ -90,12 +90,52 @@ def _awa2_gt():
     return load_eval_json(find_eval_json().parent / "awa2_evaluation.json")
 
 
+# λ sweep for the --diagnose mode. λ=0 is the Stage A′ core alone (isolates probe-noise
+# deficit vs training deficit); λ>0 adds the C4 identity channel λ·cos(v_x, v_ref).
+DIAG_LAMBDAS = (0.0, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0)
+
+
+def run_diagnosis(cfg, feats, P, tree, gt_list, out_dir) -> None:
+    # ORACLE DIAGNOSTIC — training-free. Evaluates the Stage A′ core at each λ directly on
+    # the benchmark to locate tier5's AwA2 deficit: if λ=0 ≈ the trained Φ score, training
+    # is not the problem (the Bayes core is); if λ>0 closes the gap to the CLIP baseline,
+    # the missing ingredient is the identity channel. λ is swept on TEST, so cite the
+    # CURVE as mechanism evidence in the report, never the argmax as a tuned result.
+    from eval import format_results_table
+    from results_saver import save_results_csv
+    from tier5_cdbayes import StageAPrime
+    from vm_pipeline import evaluate_scorer, log
+
+    summary = []
+    for lam in DIAG_LAMBDAS:
+        scorer = StageAPrime(feats, P, tree, conditioned_tail=True,
+                             lam=lam, hamming_max=cfg.tier4.hamming_max)
+        name = f"Aprime_lam{lam:g}"
+        results = evaluate_scorer(name, scorer.chunk, gt_list, cfg.tier4.chunk)
+        print(f"\n=== Stage A' core + {lam:g}*cos ===")
+        print(format_results_table(results))
+        save_results_csv(results, out_dir / f"tier5_diag_{name}.csv")
+        mean_r1 = sum(r["recall@1"] for r in results.values()) / len(results)
+        mean_r5 = sum(r["recall@5"] for r in results.values()) / len(results)
+        summary.append((lam, mean_r1, mean_r5))
+
+    log("DIAGNOSIS SUMMARY — Stage A' core + lambda*cos (oracle sweep, cite the curve)")
+    log(f"  {'lambda':>8s}  {'R@1':>7s}  {'R@5':>7s}")
+    for lam, r1, r5 in summary:
+        log(f"  {lam:8g}  {r1:7.4f}  {r5:7.4f}")
+    log("  reference points: trained Bprime_listnet R@1=0.6667 | CLAY 0.7306 | "
+        "CLIP baseline 0.8083 (output/awa2/*.csv)")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="AwA2 tier-5 champion (Bprime_listnet)")
     ap.add_argument("--quick", action="store_true", help="CPU smoke run (tiny epochs, 2 queries)")
     ap.add_argument("--epochs", type=int, default=None)
     ap.add_argument("--device", type=str, default=None)
     ap.add_argument("--force-probes", action="store_true")
+    ap.add_argument("--diagnose", action="store_true",
+                    help="training-free λ-sweep of the Stage A' core (locates the AwA2 "
+                         "deficit: probe noise vs missing identity channel); no Φ training")
     args = ap.parse_args()
 
     configure_awa2()
@@ -119,7 +159,7 @@ def main() -> None:
 
     dev = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
     out_dir = output_subdir("awa2")
-    set_log_file(out_dir / "tier5_train_log.txt")
+    set_log_file(out_dir / ("tier5_diag_log.txt" if args.diagnose else "tier5_train_log.txt"))
     log(f"Device: {dev}")
 
     # Stage 0 — probes; C1 — temperature calibration; C2 — Chow-Liu tree (all on AwA2 train).
@@ -135,6 +175,11 @@ def main() -> None:
 
     # Stage A′ core scorer (C1+C2+C3, λ=0) — the exact base Φ trains on. P carries C1.
     P = calibrated_posteriors(probe, feats, tau)
+
+    if args.diagnose:
+        run_diagnosis(cfg, feats, P, tree, gt_list, out_dir)
+        return
+
     scorer = StageAPrime(feats, P, tree, conditioned_tail=True,
                          lam=0.0, hamming_max=cfg.tier4.hamming_max)
 
