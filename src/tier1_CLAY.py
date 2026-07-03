@@ -152,5 +152,31 @@ def evaluate_tier1_CLAY(k=50, use_rotation=True, ks=(1, 5, 10), save=True):
     return results
 
 
+def dump_per_source_clay(k=50, use_rotation=True):
+    # Per-source dump of the published CLAY reproduction (k=50, rotH; report display
+    # name: "CLAY"). CSV regenerated from the same run — exact parity by construction.
+    from per_source import check_parity_with_csv, dump_all, save_per_source_npz
+
+    image_features = load_image_features()
+    prompt_bank = load_prompt_bank()
+    gt_list = load_eval_json(find_eval_json())
+
+    def make(query_str):
+        return make_get_ranking(query_str, image_features, prompt_bank, k=k,
+                                use_rotation=use_rotation)
+
+    results = evaluate_all(gt_list, make)
+    rot = "rotH" if use_rotation else "norot"
+    csv_path = output_subdir("tier1_CLAY") / f"tier1_CLAY_k{k}_{rot}.csv"
+    save_results_csv(results, csv_path)
+    dump = dump_all(gt_list, make)
+    check_parity_with_csv(dump, csv_path)
+    save_per_source_npz(f"tier1_CLAY_k{k}_{rot}", dump)
+
+
 if __name__ == "__main__":
-    evaluate_tier1_CLAY()
+    import sys
+    if "--dump-per-source" in sys.argv:
+        dump_per_source_clay()
+    else:
+        evaluate_tier1_CLAY()

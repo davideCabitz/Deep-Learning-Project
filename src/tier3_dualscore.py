@@ -278,10 +278,50 @@ def evaluate_dualscore(
     return results
 
 
+def dump_per_source_dualscore(model: DualScoreRetriever, probes: AttributeProbes,
+                              raw_stacks: dict[str, torch.Tensor], tag: str) -> None:
+    # Per-source outcome dump for the statistical suite, from the SAME rankings seam as
+    # evaluate_dualscore. Parity-gated against the CSV written in this run, so dump and
+    # published numbers are provably one computation.
+    from per_source import check_parity_with_csv, dump_all, save_per_source_npz
+
+    image_features = load_image_features().to(DEVICE)
+    probes.eval()
+    with torch.no_grad():
+        db_probs = torch.sigmoid(probes(image_features))
+    gt_list = load_eval_json(find_eval_json())
+
+    dump = dump_all(gt_list, lambda q: make_get_ranking(q, image_features, db_probs,
+                                                        model, raw_stacks))
+    check_parity_with_csv(dump, output_subdir("tier3_dualscore") / f"tier3_{tag}.csv")
+    save_per_source_npz(f"tier3_{tag}", dump)
+
+
+def dump_from_checkpoint(tag: str = "dualscore") -> None:
+    # Per-source dump from SAVED weights (VM-trained) — inference only, no training.
+    # Loads tier3_{tag}_phi.pt / tier3_{tag}_probes.pt from output/tier3_dualscore/ and
+    # parity-gates against the CSV those weights produced on the VM.
+    out_dir = output_subdir("tier3_dualscore")
+    cfg = DualScoreConfig()
+    prompt_bank = load_prompt_bank()
+    mu, _ = load_or_mine_directions()
+    mu_txt = compute_mu_txt(prompt_bank)
+    raw_stacks = {k: v.to(DEVICE) for k, v in build_raw_stacks(prompt_bank).items()}
+
+    model = DualScoreRetriever(cfg, mu.to(DEVICE), mu_txt.to(DEVICE)).to(DEVICE)
+    model.load_state_dict(torch.load(out_dir / f"tier3_{tag}_phi.pt", map_location=DEVICE))
+    probes = AttributeProbes(cfg.d_model, cfg.probe_hidden).to(DEVICE)
+    probes.load_state_dict(torch.load(out_dir / f"tier3_{tag}_probes.pt", map_location=DEVICE))
+    log(f"[OK] loaded checkpoints tier3_{tag}_phi.pt / tier3_{tag}_probes.pt")
+
+    dump_per_source_dualscore(model, probes, raw_stacks, tag)
+
+
 # ---------------------------------------------------------------------------
 # Main — two-stage pipeline.
 # ---------------------------------------------------------------------------
-def main(cfg: DualScoreConfig = DualScoreConfig()) -> None:
+def main(cfg: DualScoreConfig = DualScoreConfig(), tag: str = "dualscore",
+         dump_per_source: bool = False) -> None:
     torch.manual_seed(cfg.seed)
     log(f"device={DEVICE}  probe_epochs={cfg.probe_epochs}  phi_epochs={cfg.epochs}")
     if DEVICE == "cpu":
@@ -309,12 +349,37 @@ def main(cfg: DualScoreConfig = DualScoreConfig()) -> None:
     train_dualscore(model, probes, train_feats, train_attrs, raw_stacks, cfg)
 
     out_dir = output_subdir("tier3_dualscore")
-    torch.save(model.state_dict(), out_dir / "tier3_dualscore_phi.pt")
-    torch.save(probes.state_dict(), out_dir / "tier3_dualscore_probes.pt")
+    torch.save(model.state_dict(), out_dir / f"tier3_{tag}_phi.pt")
+    torch.save(probes.state_dict(), out_dir / f"tier3_{tag}_probes.pt")
     log(f"[OK] saved weights → {out_dir}")
 
-    evaluate_dualscore(model, probes, raw_stacks)
+    evaluate_dualscore(model, probes, raw_stacks, tag=tag)
+    if dump_per_source:
+        dump_per_source_dualscore(model, probes, raw_stacks, tag)
 
 
 if __name__ == "__main__":
-    main()
+    # Multi-seed protocol (report §A): trained models are seed-dependent, so the
+    # statistical suite needs n ≥ 3 independently trained runs. Example (VM):
+    #   python src/tier3_dualscore.py --seeds 0,1,2 --dump-per-source
+    import argparse
+    from dataclasses import replace
+
+    ap = argparse.ArgumentParser(description="Tier-3 DualScore — two-stage training")
+    ap.add_argument("--seeds", type=str, default=None,
+                    help="comma-separated training seeds (default: single run, cfg.seed)")
+    ap.add_argument("--dump-per-source", action="store_true",
+                    help="also dump per-source outcomes for the statistical suite")
+    ap.add_argument("--dump-from-checkpoint", action="store_true",
+                    help="per-source dump from saved weights (no training; local-safe)")
+    args = ap.parse_args()
+
+    if args.dump_from_checkpoint:
+        dump_from_checkpoint()
+    elif args.seeds is None:
+        main(dump_per_source=args.dump_per_source)
+    else:
+        for s in [int(x) for x in args.seeds.split(",")]:
+            log(f"=== DualScore seed {s} ===")
+            main(replace(DualScoreConfig(), seed=s), tag=f"dualscore_seed{s}",
+                 dump_per_source=args.dump_per_source)

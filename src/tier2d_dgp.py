@@ -270,5 +270,31 @@ def run_ablation(ks=(1, 5, 10)):
         _evaluate_one(cfg, image_features, mu, prompt_bank, mu_txt, gt_list, ks, save=True)
 
 
+def dump_per_source_champion(cfg: DGPConfig = DGPConfig(tau=100.0, alpha=1.0)):
+    # Per-source dump of the published Tier-2d champion (uniform gate, centered) for the
+    # statistical suite. Reuses _batched_rankings, so the rankings are identical to the
+    # ones behind the published CSV; the parity gate enforces exactly that.
+    from per_source import TOP_KEEP, check_parity_with_csv, dump_all, save_per_source_npz
+
+    image_features, mu, prompt_bank, mu_txt, gt_list = _load_artifacts()
+
+    def make(query_str):
+        T_pos, T_neg = parse_query(query_str)
+        entry = next(e for e in gt_list if e["query"] == query_str)
+        sources = [int(s) for s in entry["ground_truth"]]
+        rankings = _batched_rankings(
+            T_pos, T_neg, image_features, mu, prompt_bank, mu_txt, cfg, sources, TOP_KEEP,
+        )
+        return rankings.__getitem__
+
+    dump = dump_all(gt_list, make)
+    check_parity_with_csv(dump, output_subdir("tier2d") / f"tier2d_{cfg.tag()}.csv")
+    save_per_source_npz(f"tier2d_{cfg.tag()}", dump)
+
+
 if __name__ == "__main__":
-    run_ablation()
+    import sys
+    if "--dump-per-source" in sys.argv:
+        dump_per_source_champion()
+    else:
+        run_ablation()

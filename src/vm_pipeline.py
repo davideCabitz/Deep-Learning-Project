@@ -55,10 +55,13 @@ def query_indices(query_str: str) -> tuple[list[int], list[int], list[int]]:
     return pi, ni, free
 
 
-def evaluate_scorer(name: str, score_chunk, gt_list: list[dict], chunk_size: int) -> dict:
+def evaluate_scorer(name: str, score_chunk, gt_list: list[dict], chunk_size: int,
+                    dump: dict | None = None) -> dict:
     # Score every JSON query through eval.evaluate_query (the project ruler), computing
     # score matrices in source-chunks for GPU efficiency. score_chunk(srcs, pi, ni, free)
     # → [S, N]. Rankings cached to top-100 (metrics need K ≤ 10). Self-exclusion per §5.
+    # Pass `dump={}` to also collect per-source outcomes (per_source.py) from the SAME
+    # rankings — the statistics suite needs the pre-average atoms, not just the means.
     results = {}
     t0 = time.time()
     for qi, entry in enumerate(gt_list):
@@ -74,6 +77,9 @@ def evaluate_scorer(name: str, score_chunk, gt_list: list[dict], chunk_size: int
             top = torch.topk(scores, TOP_K_KEEP, dim=1).indices.cpu()
             rankings.update({s: top[j].tolist() for j, s in enumerate(chunk)})
         results[entry["query"]] = evaluate_query(entry["ground_truth"], rankings.__getitem__)
+        if dump is not None:
+            from per_source import per_source_outcomes  # lazy: numpy-only consumers stay light
+            dump[entry["query"]] = per_source_outcomes(entry["ground_truth"], rankings.__getitem__)
         r = results[entry["query"]]
         log(f"  [{name}] {qi + 1:02d}/{len(gt_list)}  {entry['query']:<46s}"
             f"  R@5={r['recall@5']:.4f}  ({time.time() - t0:.0f}s)")

@@ -81,5 +81,31 @@ def evaluate_tier0(alpha=1.0, ks=(1, 5, 10), save=True):
     return results
 
 
+def dump_per_source_baseline(alpha=1.0):
+    # Per-source dump of vanilla Tier-0 (report display name: "CLIP") for the statistical
+    # suite. CSV is regenerated from the same run, so the parity gate is exact by
+    # construction and the published location output/tier0_CLIP/ stays canonical.
+    from per_source import check_parity_with_csv, dump_all, save_per_source_npz
+    from results_saver import output_subdir
+
+    image_features = load_image_features()
+    attr_text_features = load_attribute_text_features()
+    gt_list = load_eval_json(find_eval_json())
+
+    def make(query_str):
+        return make_get_ranking(query_str, image_features, attr_text_features, alpha=alpha)
+
+    results = evaluate_all(gt_list, make)
+    csv_path = output_subdir("tier0_CLIP") / "tier0_baseline.csv"
+    save_results_csv(results, csv_path)
+    dump = dump_all(gt_list, make)
+    check_parity_with_csv(dump, csv_path)
+    save_per_source_npz("tier0_CLIP_baseline", dump)
+
+
 if __name__ == "__main__":
-    evaluate_tier0()
+    import sys
+    if "--dump-per-source" in sys.argv:
+        dump_per_source_baseline()
+    else:
+        evaluate_tier0()

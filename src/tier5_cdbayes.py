@@ -869,6 +869,10 @@ def _parse_args() -> argparse.Namespace:
                     help="run every B' row (incl. the ListNet control) with all seeds")
     ap.add_argument("--epochs", type=int, default=None, help="override B' epochs")
     ap.add_argument("--device", type=str, default=None, help="cuda | cpu (default: auto)")
+    ap.add_argument("--dump-per-source", action="store_true",
+                    help="per-source outcome dumps for the published champions "
+                         "(Aprime_C4C5 + Bprime_lambdaloss seeds) from cached artifacts "
+                         "and saved checkpoints — no tuning, no training")
     ap.add_argument("--force-probes", action="store_true", help="retrain probes even if cached")
     ap.add_argument("--force-artifacts", action="store_true",
                     help="refit temperatures + rebuild the Chow-Liu tree even if cached")
@@ -887,6 +891,63 @@ def _select_rows(rows_arg: str | None) -> tuple[list[AblationRow], list[PhiRow]]
             [r for r in PHI_ROWS if r.name in wanted])
 
 
+def dump_per_source_champions(cfg: Tier5Config, dev: torch.device, out_dir: Path) -> None:
+    # Per-source dumps of the PUBLISHED tier-5 champions for the statistical suite:
+    # Stage A′ full (Aprime_C4C5, training-free) + Bprime_lambdaloss seeds 0–2 (learned).
+    # Everything is loaded, nothing re-fit — tuned λ/β come from the saved JSON, Φ from the
+    # saved checkpoints — so each dump is parity-gated against its published CSV.
+    from per_source import check_parity_with_csv, save_per_source_npz
+
+    probe = load_or_train_probes(cfg.tier4, dev, force=False)
+    tau = load_or_fit_temperatures(probe, cfg, dev, force=False)
+    tree = load_or_build_tree(cfg, force=False).to(dev)
+    feats = load_image_features().to(dev)
+    P_cal = calibrated_posteriors(probe, feats, tau)
+    gt_list = load_eval_json(find_eval_json())
+
+    with open(out_dir / "tier5_tuned_scalars_full.json", encoding="utf-8") as f:
+        scalars = json.load(f)
+    lam, beta = scalars["lambda"], scalars["beta"]
+    log(f"Loaded tuned scalars: lambda={lam} beta={beta}")
+
+    train_feats = _load_train_features().to(dev)
+    train_attrs = _load_train_attributes()
+    P_train = calibrated_posteriors(probe, train_feats, tau)
+
+    def run(name: str, chunk_fn, csv_name: str) -> None:
+        dump: dict = {}
+        evaluate_scorer(name, chunk_fn, gt_list, cfg.tier4.chunk, dump=dump)
+        check_parity_with_csv(dump, out_dir / csv_name)
+        save_per_source_npz(f"tier5_{name}", dump)
+
+    # Stage A′ champion — same construction as the ablation loop's Aprime_C4C5 arm.
+    scorer = StageAPrime(feats, P_cal, tree, conditioned_tail=True,
+                         lam=lam, hamming_max=cfg.tier4.hamming_max)
+    gen = QueryGenerator(train_attrs,
+                         replace(cfg.tier4.phi_gen_config(), seed=cfg.querybank_seed))
+    bank = build_querybank(scorer, sample_constraint_queries(gen, cfg.querybank_size),
+                           train_feats, P_train)
+    run("Aprime_C4C5", _with_qbnorm(scorer, bank, beta), "tier5_Aprime_C4C5_full.csv")
+
+    # Stage B′ — saved checkpoints over the λ=0 core they were trained on. The ListNet
+    # seed-0 run is the overall CHAMPION (summary CSV: R@10 0.4128); the LambdaLoss seeds
+    # are its multi-seed control family. Missing checkpoints are skipped with a warning
+    # so a partial local pull still dumps everything it can.
+    core = StageAPrime(feats, P_cal, tree, conditioned_tail=True, lam=0.0,
+                       hamming_max=cfg.tier4.hamming_max)
+    stems = [("Bprime_listnet_seed0", "tier5_Bprime_listnet_seed0")] + \
+            [(f"Bprime_lambdaloss_seed{s}", f"tier5_Bprime_lambdaloss_seed{s}")
+             for s in cfg.seeds]
+    for name, stem in stems:
+        ckpt = out_dir / f"{stem}.pt"
+        if not ckpt.exists():
+            log(f"WARNING: {ckpt.name} not found — skipping {name} dump")
+            continue
+        model = BayesPhi(cfg.tier4).to(dev)
+        model.load_state_dict(torch.load(ckpt, map_location=dev))
+        run(name, make_stage_b_prime_chunk(model, core, use_qv=True), f"{stem}_full.csv")
+
+
 def main() -> None:
     args = _parse_args()
     cfg = Tier5Config()
@@ -901,6 +962,9 @@ def main() -> None:
 
     dev = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
     out_dir = output_subdir("tier5_cdbayes")
+    if args.dump_per_source:
+        dump_per_source_champions(cfg, dev, out_dir)
+        return
     set_log_file(out_dir / "train_log.txt")
     tag = "quick" if args.quick else "full"
     a_rows, phi_rows = _select_rows(args.rows)

@@ -186,7 +186,30 @@ def _mean_recall(results, k=5):
     return sum(r[f"recall@{k}"] for r in results.values()) / len(results)
 
 
+def dump_per_source_all_fixes():
+    # Per-source dump of the published champion config (all three fixes on) for the
+    # statistical suite. Same rankings as evaluate_enhanced; parity-gated against the
+    # published CSV so the dump can never silently drift from the reported numbers.
+    from per_source import check_parity_with_csv, dump_all, save_per_source_npz
+
+    image_features = load_image_features()
+    attr_directions, mu_img = build_attr_directions(use_prompt_bank=True, center=True)
+    gt_list = load_eval_json(find_eval_json())
+
+    def make(query_str):
+        return make_get_ranking(query_str, image_features, attr_directions, mu_img,
+                                alpha=1.0, norm_delta=True, center=True)
+
+    dump = dump_all(gt_list, make)
+    check_parity_with_csv(dump, output_subdir("tier0_enhanced") / "tier0_enhanced_all_fixes.csv")
+    save_per_source_npz("tier0_enhanced_all_fixes", dump)
+
+
 if __name__ == "__main__":
+    import sys
+    if "--dump-per-source" in sys.argv:
+        dump_per_source_all_fixes()
+        sys.exit(0)
     # Full ablation: naive-equivalent -> add fixes one at a time -> all three on.
     # Each run writes its own CSV; the console summary shows the marginal R@5 gain.
     print("=" * 70)
