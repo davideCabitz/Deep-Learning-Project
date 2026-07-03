@@ -60,12 +60,35 @@ def _read_indexed_list(path: Path) -> list[str]:
     return names
 
 
+# Metadata (class names, predicate names, class→attribute matrix) is cached as small
+# artifacts so downstream tiers run on a machine that has ONLY the extracted features and
+# not the 13GB raw dataset (e.g. the training VM). The raw dataset is the source of truth
+# when present; the cache is written on first read and used as the fallback otherwise.
+def _load_cached_or_raw(cache_name: str, raw_reader):
+    cache = _get_artifacts_dir() / cache_name
+    if cache.exists():
+        with open(cache, 'r') as f:
+            return json.load(f)
+    root = _get_project_root() / 'Animals_with_Attributes2'
+    if not (root / 'classes.txt').exists():
+        raise FileNotFoundError(
+            f"AwA2 metadata cache missing ({cache}) and raw dataset absent ({root}).\n"
+            "Run src/awa2/data_loader.py once on the machine that HAS the dataset to build "
+            "the caches, then copy artifacts/awa2/*.json to this machine.")
+    value = raw_reader(root)
+    with open(cache, 'w') as f:
+        json.dump(value, f)
+    return value
+
+
 def load_class_names() -> list[str]:
-    return _read_indexed_list(_get_awa2_root() / 'classes.txt')
+    return _load_cached_or_raw(
+        'class_names.json', lambda root: _read_indexed_list(root / 'classes.txt'))
 
 
 def load_predicate_names() -> list[str]:
-    return _read_indexed_list(_get_awa2_root() / 'predicates.txt')
+    return _load_cached_or_raw(
+        'predicate_names.json', lambda root: _read_indexed_list(root / 'predicates.txt'))
 
 
 ATTRIBUTE_NAMES = load_predicate_names()
@@ -74,11 +97,14 @@ ATTR_TO_IDX = {name: i for i, name in enumerate(ATTRIBUTE_NAMES)}
 
 def load_class_attribute_matrix() -> torch.Tensor:
     # [50, 85] float32 {0,1}; row order == classes.txt, column order == predicates.txt.
-    path = _get_awa2_root() / 'predicate-matrix-binary.txt'
-    rows = [[float(x) for x in line.split()] for line in open(path) if line.strip()]
-    matrix = torch.tensor(rows, dtype=torch.float32)
+    def _read(root):
+        path = root / 'predicate-matrix-binary.txt'
+        return [[float(x) for x in line.split()] for line in open(path) if line.strip()]
+
+    matrix = torch.tensor(_load_cached_or_raw('class_attribute_matrix.json', _read),
+                          dtype=torch.float32)
     if matrix.shape != (N_CLASSES, N_ATTRS):
-        raise ValueError(f"predicate-matrix-binary.txt has shape {tuple(matrix.shape)}, "
+        raise ValueError(f"class-attribute matrix has shape {tuple(matrix.shape)}, "
                          f"expected ({N_CLASSES}, {N_ATTRS}).")
     return matrix
 
