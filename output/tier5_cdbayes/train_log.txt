@@ -1,0 +1,712 @@
+[15:15:12] Device: cuda  GPU: Tesla T4
+[15:15:12] Rows: ['A_tier4repro', 'A_C1', 'A_C1C2', 'A_C1C2C3', 'Aprime_C4', 'Aprime_C5', 'Aprime_C4C5', 'Bprime_listnet', 'Bprime_lambdaloss', 'Bprime_lambdaloss_noqv']
+[15:15:12] [OK] Loaded cached probes: /home/disi/DLproject_VM/Deep-Learning-Project/artifacts/tier4_probe.pt
+[15:15:12] Fitting per-attribute temperatures (C1)...
+[15:15:16]   per-attribute  tau  ECE(before)  ECE(after):
+[15:15:16]     5_o_Clock_Shadow        0.716  0.0520  0.0395
+[15:15:16]     Arched_Eyebrows         0.735  0.0518  0.0275
+[15:15:16]     Attractive              0.685  0.0526  0.0154
+[15:15:16]     Bags_Under_Eyes         0.853  0.0394  0.0310
+[15:15:16]     Bald                    0.776  0.0310  0.0150
+[15:15:16]     Bangs                   0.623  0.1027  0.0695
+[15:15:16]     Big_Lips                0.853  0.0353  0.0319
+[15:15:16]     Big_Nose                0.795  0.0412  0.0313
+[15:15:16]     Black_Hair              0.612  0.0924  0.0618
+[15:15:16]     Blond_Hair              0.576  0.0783  0.0368
+[15:15:16]     Blurry                  0.879  0.0331  0.0302
+[15:15:16]     Brown_Hair              0.750  0.0834  0.0709
+[15:15:16]     Bushy_Eyebrows          0.737  0.0594  0.0427
+[15:15:16]     Chubby                  0.798  0.0382  0.0286
+[15:15:16]     Double_Chin             0.815  0.0305  0.0214
+[15:15:16]     Eyeglasses              0.734  0.0701  0.0506
+[15:15:16]     Goatee                  0.756  0.0619  0.0481
+[15:15:16]     Gray_Hair               0.717  0.0392  0.0232
+[15:15:16]     Heavy_Makeup            0.544  0.0731  0.0167
+[15:15:16]     High_Cheekbones         0.542  0.0952  0.0155
+[15:15:16]     Male                    0.389  0.0891  0.0028
+[15:15:16]     Mouth_Slightly_Open     0.441  0.1379  0.0338
+[15:15:16]     Mustache                0.827  0.0333  0.0306
+[15:15:16]     Narrow_Eyes             0.936  0.0422  0.0312
+[15:15:16]     No_Beard                0.476  0.0966  0.0472
+[15:15:16]     Oval_Face               0.868  0.0368  0.0320
+[15:15:16]     Pale_Skin               0.901  0.0243  0.0155
+[15:15:16]     Pointy_Nose             0.834  0.0352  0.0348
+[15:15:16]     Receding_Hairline       0.842  0.0426  0.0340
+[15:15:16]     Rosy_Cheeks             0.810  0.0494  0.0398
+[15:15:16]     Sideburns               0.760  0.0614  0.0466
+[15:15:16]     Smiling                 0.382  0.1387  0.0073
+[15:15:16]     Straight_Hair           0.800  0.0830  0.0769
+[15:15:16]     Wavy_Hair               0.582  0.0928  0.0379
+[15:15:16]     Wearing_Earrings        0.726  0.0678  0.0473
+[15:15:16]     Wearing_Hat             0.782  0.0587  0.0433
+[15:15:16]     Wearing_Lipstick        0.576  0.0715  0.0191
+[15:15:16]     Wearing_Necklace        0.878  0.0280  0.0279
+[15:15:16]     Wearing_Necktie         0.744  0.0504  0.0394
+[15:15:16]     Young                   0.710  0.0569  0.0295
+[15:15:16]   mean ECE 0.0614 -> 0.0346
+[15:15:16]   Saved: /home/disi/DLproject_VM/Deep-Learning-Project/artifacts/tier5_temperatures.pt
+[15:15:16] Building Chow-Liu dependency tree (C2)...
+[15:15:16]   top-MI edge: Male -- Wearing_Lipstick  (MI=0.3876)
+[15:15:16]   top-MI edge: Wearing_Lipstick -- Heavy_Makeup  (MI=0.3844)
+[15:15:16]   top-MI edge: High_Cheekbones -- Smiling  (MI=0.2557)
+[15:15:16]   top-MI edge: Male -- No_Beard  (MI=0.1625)
+[15:15:16]   top-MI edge: Smiling -- Mouth_Slightly_Open  (MI=0.1506)
+[15:15:16]   Saved: /home/disi/DLproject_VM/Deep-Learning-Project/artifacts/tier5_chowliu.pt
+[15:15:16] Hard invariant — all-off scorer vs tier4 Stage A
+[15:15:16]   hard invariant OK: max |all-off - tier4 Stage A| = 0.00e+00
+[15:15:16] Tuning training-free scalars on synthetic TRAIN queries...
+[15:15:23]   tuner ready: 185/200 queries with in-gallery positives
+[15:15:32]   lambda=0      train hit@5=0.2865
+[15:15:32]   lambda=0.25   train hit@5=0.2865
+[15:15:32]   lambda=0.5    train hit@5=0.2865
+[15:15:32]   lambda=1      train hit@5=0.3189
+[15:15:32]   lambda=2      train hit@5=0.3243
+[15:15:32]   lambda=4      train hit@5=0.2973
+[15:15:32]   lambda=8      train hit@5=0.2649
+[15:15:32]   tuned lambda = 2.0
+[15:15:33]   beta=0.125  train hit@5=0.2216
+[15:15:33]   beta=0.25   train hit@5=0.2595
+[15:15:33]   beta=0.5    train hit@5=0.2541
+[15:15:33]   beta=1      train hit@5=0.2378
+[15:15:34]   beta=2      train hit@5=0.2378
+[15:15:34]   tuned beta = 0.25
+[15:15:34] Ablation [A_tier4repro] C1=False C2=False C3=False lam=0 qbnorm=False
+[15:15:35]   [A_tier4repro] 01/14  +Smiling                                        R@5=0.1651  (2s)
+[15:15:36]   [A_tier4repro] 02/14  +Eyeglasses                                     R@5=0.4221  (2s)
+[15:15:37]   [A_tier4repro] 03/14  -Heavy_Makeup                                   R@5=0.1703  (4s)
+[15:15:38]   [A_tier4repro] 04/14  +Male                                           R@5=0.2734  (4s)
+[15:15:40]   [A_tier4repro] 05/14  -Young                                          R@5=0.1750  (6s)
+[15:15:42]   [A_tier4repro] 06/14  +Blond_Hair                                     R@5=0.2516  (8s)
+[15:15:42]   [A_tier4repro] 07/14  +Mustache                                       R@5=0.1329  (8s)
+[15:15:43]   [A_tier4repro] 08/14  -Young                                          R@5=0.1750  (10s)
+[15:15:44]   [A_tier4repro] 09/14  +Eyeglasses, +Smiling                           R@5=0.3399  (10s)
+[15:15:45]   [A_tier4repro] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.2978  (11s)
+[15:15:45]   [A_tier4repro] 11/14  -Male, -Mustache                                R@5=0.2222  (11s)
+[15:15:45]   [A_tier4repro] 12/14  +Chubby, -Young                                 R@5=0.1404  (11s)
+[15:15:45]   [A_tier4repro] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.7848  (11s)
+[15:15:45]   [A_tier4repro] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (11s)
+[15:15:45] Ablation [A_C1] C1=True C2=False C3=False lam=0 qbnorm=False
+[15:15:46]   [A_C1] 01/14  +Smiling                                        R@5=0.1550  (2s)
+[15:15:47]   [A_C1] 02/14  +Eyeglasses                                     R@5=0.3780  (2s)
+[15:15:49]   [A_C1] 03/14  -Heavy_Makeup                                   R@5=0.1816  (4s)
+[15:15:49]   [A_C1] 04/14  +Male                                           R@5=0.2458  (4s)
+[15:15:51]   [A_C1] 05/14  -Young                                          R@5=0.1737  (6s)
+[15:15:53]   [A_C1] 06/14  +Blond_Hair                                     R@5=0.2350  (8s)
+[15:15:53]   [A_C1] 07/14  +Mustache                                       R@5=0.1196  (8s)
+[15:15:55]   [A_C1] 08/14  -Young                                          R@5=0.1737  (10s)
+[15:15:55]   [A_C1] 09/14  +Eyeglasses, +Smiling                           R@5=0.2467  (10s)
+[15:15:56]   [A_C1] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.3025  (11s)
+[15:15:56]   [A_C1] 11/14  -Male, -Mustache                                R@5=0.2222  (11s)
+[15:15:56]   [A_C1] 12/14  +Chubby, -Young                                 R@5=0.3408  (11s)
+[15:15:56]   [A_C1] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.7468  (11s)
+[15:15:56]   [A_C1] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0294  (11s)
+[15:15:56] Ablation [A_C1C2] C1=True C2=True C3=False lam=0 qbnorm=False
+[15:15:58]   [A_C1C2] 01/14  +Smiling                                        R@5=0.1640  (2s)
+[15:15:59]   [A_C1C2] 02/14  +Eyeglasses                                     R@5=0.4180  (3s)
+[15:16:00]   [A_C1C2] 03/14  -Heavy_Makeup                                   R@5=0.1294  (4s)
+[15:16:01]   [A_C1C2] 04/14  +Male                                           R@5=0.2451  (4s)
+[15:16:02]   [A_C1C2] 05/14  -Young                                          R@5=0.1501  (6s)
+[15:16:04]   [A_C1C2] 06/14  +Blond_Hair                                     R@5=0.2642  (8s)
+[15:16:04]   [A_C1C2] 07/14  +Mustache                                       R@5=0.1495  (8s)
+[15:16:06]   [A_C1C2] 08/14  -Young                                          R@5=0.1501  (10s)
+[15:16:06]   [A_C1C2] 09/14  +Eyeglasses, +Smiling                           R@5=0.2925  (10s)
+[15:16:07]   [A_C1C2] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.2589  (11s)
+[15:16:07]   [A_C1C2] 11/14  -Male, -Mustache                                R@5=0.2963  (11s)
+[15:16:07]   [A_C1C2] 12/14  +Chubby, -Young                                 R@5=0.1473  (11s)
+[15:16:07]   [A_C1C2] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.7342  (11s)
+[15:16:07]   [A_C1C2] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (11s)
+[15:16:07] Ablation [A_C1C2C3] C1=True C2=True C3=True lam=0 qbnorm=False
+[15:16:09]   [A_C1C2C3] 01/14  +Smiling                                        R@5=0.1619  (2s)
+[15:16:10]   [A_C1C2C3] 02/14  +Eyeglasses                                     R@5=0.3839  (2s)
+[15:16:11]   [A_C1C2C3] 03/14  -Heavy_Makeup                                   R@5=0.1502  (4s)
+[15:16:12]   [A_C1C2C3] 04/14  +Male                                           R@5=0.2445  (4s)
+[15:16:14]   [A_C1C2C3] 05/14  -Young                                          R@5=0.1300  (6s)
+[15:16:16]   [A_C1C2C3] 06/14  +Blond_Hair                                     R@5=0.2229  (8s)
+[15:16:16]   [A_C1C2C3] 07/14  +Mustache                                       R@5=0.1628  (8s)
+[15:16:18]   [A_C1C2C3] 08/14  -Young                                          R@5=0.1300  (10s)
+[15:16:18]   [A_C1C2C3] 09/14  +Eyeglasses, +Smiling                           R@5=0.7190  (10s)
+[15:16:19]   [A_C1C2C3] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.2496  (11s)
+[15:16:19]   [A_C1C2C3] 11/14  -Male, -Mustache                                R@5=0.3333  (11s)
+[15:16:19]   [A_C1C2C3] 12/14  +Chubby, -Young                                 R@5=0.2175  (11s)
+[15:16:19]   [A_C1C2C3] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.5949  (11s)
+[15:16:19]   [A_C1C2C3] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (11s)
+[15:16:19] Ablation [Aprime_C4] C1=True C2=True C3=True lam=2.0 qbnorm=False
+[15:16:21]   [Aprime_C4] 01/14  +Smiling                                        R@5=0.1711  (2s)
+[15:16:21]   [Aprime_C4] 02/14  +Eyeglasses                                     R@5=0.3985  (2s)
+[15:16:23]   [Aprime_C4] 03/14  -Heavy_Makeup                                   R@5=0.1600  (4s)
+[15:16:23]   [Aprime_C4] 04/14  +Male                                           R@5=0.2514  (4s)
+[15:16:25]   [Aprime_C4] 05/14  -Young                                          R@5=0.1371  (6s)
+[15:16:27]   [Aprime_C4] 06/14  +Blond_Hair                                     R@5=0.2108  (8s)
+[15:16:27]   [Aprime_C4] 07/14  +Mustache                                       R@5=0.2126  (8s)
+[15:16:29]   [Aprime_C4] 08/14  -Young                                          R@5=0.1371  (10s)
+[15:16:29]   [Aprime_C4] 09/14  +Eyeglasses, +Smiling                           R@5=0.6912  (10s)
+[15:16:30]   [Aprime_C4] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.2729  (11s)
+[15:16:30]   [Aprime_C4] 11/14  -Male, -Mustache                                R@5=0.1481  (11s)
+[15:16:31]   [Aprime_C4] 12/14  +Chubby, -Young                                 R@5=0.1901  (12s)
+[15:16:31]   [Aprime_C4] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.5696  (12s)
+[15:16:31]   [Aprime_C4] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (12s)
+[15:16:31] Ablation [Aprime_C5] C1=True C2=True C3=True lam=0 qbnorm=True
+[15:16:41]   [Aprime_C5] 01/14  +Smiling                                        R@5=0.1394  (2s)
+[15:16:42]   [Aprime_C5] 02/14  +Eyeglasses                                     R@5=0.3862  (2s)
+[15:16:43]   [Aprime_C5] 03/14  -Heavy_Makeup                                   R@5=0.1426  (4s)
+[15:16:44]   [Aprime_C5] 04/14  +Male                                           R@5=0.2326  (4s)
+[15:16:45]   [Aprime_C5] 05/14  -Young                                          R@5=0.1335  (6s)
+[15:16:47]   [Aprime_C5] 06/14  +Blond_Hair                                     R@5=0.2030  (8s)
+[15:16:48]   [Aprime_C5] 07/14  +Mustache                                       R@5=0.1694  (8s)
+[15:16:49]   [Aprime_C5] 08/14  -Young                                          R@5=0.1335  (10s)
+[15:16:50]   [Aprime_C5] 09/14  +Eyeglasses, +Smiling                           R@5=0.7190  (11s)
+[15:16:51]   [Aprime_C5] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.1897  (11s)
+[15:16:51]   [Aprime_C5] 11/14  -Male, -Mustache                                R@5=0.2963  (11s)
+[15:16:51]   [Aprime_C5] 12/14  +Chubby, -Young                                 R@5=0.1164  (12s)
+[15:16:51]   [Aprime_C5] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.4557  (12s)
+[15:16:51]   [Aprime_C5] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (12s)
+[15:16:51] Ablation [Aprime_C4C5] C1=True C2=True C3=True lam=2.0 qbnorm=True
+[15:16:58]   [Aprime_C4C5] 01/14  +Smiling                                        R@5=0.1659  (2s)
+[15:16:59]   [Aprime_C4C5] 02/14  +Eyeglasses                                     R@5=0.3989  (2s)
+[15:17:01]   [Aprime_C4C5] 03/14  -Heavy_Makeup                                   R@5=0.1522  (4s)
+[15:17:01]   [Aprime_C4C5] 04/14  +Male                                           R@5=0.2527  (5s)
+[15:17:03]   [Aprime_C4C5] 05/14  -Young                                          R@5=0.1399  (6s)
+[15:17:05]   [Aprime_C4C5] 06/14  +Blond_Hair                                     R@5=0.1995  (8s)
+[15:17:05]   [Aprime_C4C5] 07/14  +Mustache                                       R@5=0.1860  (9s)
+[15:17:07]   [Aprime_C4C5] 08/14  -Young                                          R@5=0.1399  (10s)
+[15:17:07]   [Aprime_C4C5] 09/14  +Eyeglasses, +Smiling                           R@5=0.6912  (11s)
+[15:17:08]   [Aprime_C4C5] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.2403  (12s)
+[15:17:08]   [Aprime_C4C5] 11/14  -Male, -Mustache                                R@5=0.1481  (12s)
+[15:17:09]   [Aprime_C4C5] 12/14  +Chubby, -Young                                 R@5=0.1370  (12s)
+[15:17:09]   [Aprime_C4C5] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.5696  (12s)
+[15:17:09]   [Aprime_C4C5] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (12s)
+[15:17:09]   B' init sanity: max |Phi_init - StageA'| = 0.00e+00
+[15:17:09] B' [listnet seed=0]: 913,017 params, 40 epochs x 101 steps x 64 queries
+[15:20:52]   epoch 01/40  listnet=2.8714  kappa=1.000  eta=145.2min
+[15:24:33]   epoch 02/40  listnet=2.8067  kappa=0.996  eta=140.5min
+[15:28:14]   epoch 03/40  listnet=2.7765  kappa=0.991  eta=136.8min
+[15:31:56]   epoch 04/40  listnet=2.7716  kappa=0.986  eta=133.1min
+[15:38:44] Device: cuda  GPU: Tesla T4
+[15:38:44] Rows: ['A_tier4repro', 'A_C1', 'A_C1C2', 'A_C1C2C3', 'Aprime_C4', 'Aprime_C5', 'Aprime_C4C5', 'Bprime_listnet', 'Bprime_lambdaloss', 'Bprime_lambdaloss_noqv']
+[15:38:44] [OK] Loaded cached probes: /home/disi/DLproject_VM/Deep-Learning-Project/artifacts/tier4_probe.pt
+[15:38:45] [OK] Loaded cached temperatures: /home/disi/DLproject_VM/Deep-Learning-Project/artifacts/tier5_temperatures.pt  (mean ECE 0.0614 -> 0.0346)
+[15:38:45] [OK] Loaded cached Chow-Liu tree: /home/disi/DLproject_VM/Deep-Learning-Project/artifacts/tier5_chowliu.pt
+[15:38:45] Hard invariant — all-off scorer vs tier4 Stage A
+[15:38:45]   hard invariant OK: max |all-off - tier4 Stage A| = 0.00e+00
+[15:38:45] Tuning training-free scalars on synthetic TRAIN queries...
+[15:38:52]   tuner ready: 185/200 queries with in-gallery positives
+[15:39:00]   lambda=0      train hit@5=0.2865
+[15:39:00]   lambda=0.25   train hit@5=0.2865
+[15:39:00]   lambda=0.5    train hit@5=0.2865
+[15:39:00]   lambda=1      train hit@5=0.3189
+[15:39:00]   lambda=2      train hit@5=0.3243
+[15:39:00]   lambda=4      train hit@5=0.2973
+[15:39:00]   lambda=8      train hit@5=0.2649
+[15:39:00]   tuned lambda = 2.0
+[15:39:01]   beta=0.125  train hit@5=0.2216
+[15:39:01]   beta=0.25   train hit@5=0.2595
+[15:39:01]   beta=0.5    train hit@5=0.2541
+[15:39:01]   beta=1      train hit@5=0.2378
+[15:39:02]   beta=2      train hit@5=0.2378
+[15:39:02]   tuned beta = 0.25
+[15:39:02] Ablation [A_tier4repro] C1=False C2=False C3=False lam=0 qbnorm=False
+[15:39:03]   [A_tier4repro] 01/14  +Smiling                                        R@5=0.1651  (2s)
+[15:39:04]   [A_tier4repro] 02/14  +Eyeglasses                                     R@5=0.4221  (2s)
+[15:39:05]   [A_tier4repro] 03/14  -Heavy_Makeup                                   R@5=0.1703  (4s)
+[15:39:06]   [A_tier4repro] 04/14  +Male                                           R@5=0.2734  (4s)
+[15:39:08]   [A_tier4repro] 05/14  -Young                                          R@5=0.1750  (6s)
+[15:39:10]   [A_tier4repro] 06/14  +Blond_Hair                                     R@5=0.2516  (8s)
+[15:39:10]   [A_tier4repro] 07/14  +Mustache                                       R@5=0.1329  (8s)
+[15:39:12]   [A_tier4repro] 08/14  -Young                                          R@5=0.1750  (10s)
+[15:39:12]   [A_tier4repro] 09/14  +Eyeglasses, +Smiling                           R@5=0.3399  (10s)
+[15:39:13]   [A_tier4repro] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.2978  (11s)
+[15:39:13]   [A_tier4repro] 11/14  -Male, -Mustache                                R@5=0.2222  (11s)
+[15:39:13]   [A_tier4repro] 12/14  +Chubby, -Young                                 R@5=0.1404  (11s)
+[15:39:13]   [A_tier4repro] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.7848  (11s)
+[15:39:13]   [A_tier4repro] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (11s)
+[15:39:13] Ablation [A_C1] C1=True C2=False C3=False lam=0 qbnorm=False
+[15:39:14]   [A_C1] 01/14  +Smiling                                        R@5=0.1550  (2s)
+[15:39:15]   [A_C1] 02/14  +Eyeglasses                                     R@5=0.3780  (2s)
+[15:39:17]   [A_C1] 03/14  -Heavy_Makeup                                   R@5=0.1816  (4s)
+[15:39:17]   [A_C1] 04/14  +Male                                           R@5=0.2458  (4s)
+[15:39:19]   [A_C1] 05/14  -Young                                          R@5=0.1737  (6s)
+[15:39:21]   [A_C1] 06/14  +Blond_Hair                                     R@5=0.2350  (8s)
+[15:39:21]   [A_C1] 07/14  +Mustache                                       R@5=0.1196  (8s)
+[15:39:23]   [A_C1] 08/14  -Young                                          R@5=0.1737  (10s)
+[15:39:23]   [A_C1] 09/14  +Eyeglasses, +Smiling                           R@5=0.2467  (10s)
+[15:39:24]   [A_C1] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.3025  (11s)
+[15:39:24]   [A_C1] 11/14  -Male, -Mustache                                R@5=0.2222  (11s)
+[15:39:24]   [A_C1] 12/14  +Chubby, -Young                                 R@5=0.3408  (11s)
+[15:39:24]   [A_C1] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.7468  (11s)
+[15:39:24]   [A_C1] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0294  (11s)
+[15:39:24] Ablation [A_C1C2] C1=True C2=True C3=False lam=0 qbnorm=False
+[15:39:26]   [A_C1C2] 01/14  +Smiling                                        R@5=0.1640  (2s)
+[15:39:27]   [A_C1C2] 02/14  +Eyeglasses                                     R@5=0.4180  (2s)
+[15:39:28]   [A_C1C2] 03/14  -Heavy_Makeup                                   R@5=0.1294  (4s)
+[15:39:29]   [A_C1C2] 04/14  +Male                                           R@5=0.2451  (4s)
+[15:39:30]   [A_C1C2] 05/14  -Young                                          R@5=0.1501  (6s)
+[15:39:32]   [A_C1C2] 06/14  +Blond_Hair                                     R@5=0.2642  (8s)
+[15:39:32]   [A_C1C2] 07/14  +Mustache                                       R@5=0.1495  (8s)
+[15:39:34]   [A_C1C2] 08/14  -Young                                          R@5=0.1501  (10s)
+[15:39:34]   [A_C1C2] 09/14  +Eyeglasses, +Smiling                           R@5=0.2925  (10s)
+[15:39:35]   [A_C1C2] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.2589  (11s)
+[15:39:35]   [A_C1C2] 11/14  -Male, -Mustache                                R@5=0.2963  (11s)
+[15:39:35]   [A_C1C2] 12/14  +Chubby, -Young                                 R@5=0.1473  (11s)
+[15:39:36]   [A_C1C2] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.7342  (11s)
+[15:39:36]   [A_C1C2] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (11s)
+[15:39:36] Ablation [A_C1C2C3] C1=True C2=True C3=True lam=0 qbnorm=False
+[15:39:37]   [A_C1C2C3] 01/14  +Smiling                                        R@5=0.1619  (2s)
+[15:39:38]   [A_C1C2C3] 02/14  +Eyeglasses                                     R@5=0.3839  (2s)
+[15:39:39]   [A_C1C2C3] 03/14  -Heavy_Makeup                                   R@5=0.1502  (4s)
+[15:39:40]   [A_C1C2C3] 04/14  +Male                                           R@5=0.2445  (4s)
+[15:39:42]   [A_C1C2C3] 05/14  -Young                                          R@5=0.1300  (6s)
+[15:39:44]   [A_C1C2C3] 06/14  +Blond_Hair                                     R@5=0.2229  (8s)
+[15:39:44]   [A_C1C2C3] 07/14  +Mustache                                       R@5=0.1628  (8s)
+[15:39:46]   [A_C1C2C3] 08/14  -Young                                          R@5=0.1300  (10s)
+[15:39:46]   [A_C1C2C3] 09/14  +Eyeglasses, +Smiling                           R@5=0.7190  (10s)
+[15:39:47]   [A_C1C2C3] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.2496  (11s)
+[15:39:47]   [A_C1C2C3] 11/14  -Male, -Mustache                                R@5=0.3333  (11s)
+[15:39:47]   [A_C1C2C3] 12/14  +Chubby, -Young                                 R@5=0.2175  (11s)
+[15:39:47]   [A_C1C2C3] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.5949  (11s)
+[15:39:47]   [A_C1C2C3] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (11s)
+[15:39:47] Ablation [Aprime_C4] C1=True C2=True C3=True lam=2.0 qbnorm=False
+[15:39:49]   [Aprime_C4] 01/14  +Smiling                                        R@5=0.1711  (2s)
+[15:39:49]   [Aprime_C4] 02/14  +Eyeglasses                                     R@5=0.3985  (2s)
+[15:39:51]   [Aprime_C4] 03/14  -Heavy_Makeup                                   R@5=0.1600  (4s)
+[15:39:51]   [Aprime_C4] 04/14  +Male                                           R@5=0.2514  (4s)
+[15:39:53]   [Aprime_C4] 05/14  -Young                                          R@5=0.1371  (6s)
+[15:39:55]   [Aprime_C4] 06/14  +Blond_Hair                                     R@5=0.2108  (8s)
+[15:39:55]   [Aprime_C4] 07/14  +Mustache                                       R@5=0.2126  (8s)
+[15:39:57]   [Aprime_C4] 08/14  -Young                                          R@5=0.1371  (10s)
+[15:39:57]   [Aprime_C4] 09/14  +Eyeglasses, +Smiling                           R@5=0.6912  (10s)
+[15:39:58]   [Aprime_C4] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.2729  (11s)
+[15:39:58]   [Aprime_C4] 11/14  -Male, -Mustache                                R@5=0.1481  (11s)
+[15:39:59]   [Aprime_C4] 12/14  +Chubby, -Young                                 R@5=0.1901  (12s)
+[15:39:59]   [Aprime_C4] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.5696  (12s)
+[15:39:59]   [Aprime_C4] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (12s)
+[15:39:59] Ablation [Aprime_C5] C1=True C2=True C3=True lam=0 qbnorm=True
+[15:40:09]   [Aprime_C5] 01/14  +Smiling                                        R@5=0.1394  (2s)
+[15:40:10]   [Aprime_C5] 02/14  +Eyeglasses                                     R@5=0.3862  (2s)
+[15:40:11]   [Aprime_C5] 03/14  -Heavy_Makeup                                   R@5=0.1426  (4s)
+[15:40:12]   [Aprime_C5] 04/14  +Male                                           R@5=0.2326  (4s)
+[15:40:14]   [Aprime_C5] 05/14  -Young                                          R@5=0.1335  (6s)
+[15:40:16]   [Aprime_C5] 06/14  +Blond_Hair                                     R@5=0.2030  (8s)
+[15:40:16]   [Aprime_C5] 07/14  +Mustache                                       R@5=0.1694  (8s)
+[15:40:18]   [Aprime_C5] 08/14  -Young                                          R@5=0.1335  (10s)
+[15:40:18]   [Aprime_C5] 09/14  +Eyeglasses, +Smiling                           R@5=0.7190  (11s)
+[15:40:19]   [Aprime_C5] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.1897  (11s)
+[15:40:19]   [Aprime_C5] 11/14  -Male, -Mustache                                R@5=0.2963  (11s)
+[15:40:19]   [Aprime_C5] 12/14  +Chubby, -Young                                 R@5=0.1164  (12s)
+[15:40:19]   [Aprime_C5] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.4557  (12s)
+[15:40:19]   [Aprime_C5] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (12s)
+[15:40:19] Ablation [Aprime_C4C5] C1=True C2=True C3=True lam=2.0 qbnorm=True
+[15:40:27]   [Aprime_C4C5] 01/14  +Smiling                                        R@5=0.1659  (2s)
+[15:40:27]   [Aprime_C4C5] 02/14  +Eyeglasses                                     R@5=0.3989  (2s)
+[15:40:29]   [Aprime_C4C5] 03/14  -Heavy_Makeup                                   R@5=0.1522  (4s)
+[15:40:29]   [Aprime_C4C5] 04/14  +Male                                           R@5=0.2527  (5s)
+[15:40:31]   [Aprime_C4C5] 05/14  -Young                                          R@5=0.1399  (6s)
+[15:40:33]   [Aprime_C4C5] 06/14  +Blond_Hair                                     R@5=0.1995  (8s)
+[15:40:33]   [Aprime_C4C5] 07/14  +Mustache                                       R@5=0.1860  (9s)
+[15:40:35]   [Aprime_C4C5] 08/14  -Young                                          R@5=0.1399  (10s)
+[15:40:36]   [Aprime_C4C5] 09/14  +Eyeglasses, +Smiling                           R@5=0.6912  (11s)
+[15:40:37]   [Aprime_C4C5] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.2403  (12s)
+[15:40:37]   [Aprime_C4C5] 11/14  -Male, -Mustache                                R@5=0.1481  (12s)
+[15:40:37]   [Aprime_C4C5] 12/14  +Chubby, -Young                                 R@5=0.1370  (12s)
+[15:40:37]   [Aprime_C4C5] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.5696  (12s)
+[15:40:37]   [Aprime_C4C5] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (12s)
+[15:40:37]   B' init sanity: max |Phi_init - StageA'| = 0.00e+00
+[15:40:37] B' [listnet seed=0]: 913,017 params, 40 epochs x 101 steps x 64 queries
+[15:44:22]   epoch 01/40  listnet=2.8714  kappa=1.000  eta=146.3min
+[15:48:07]   epoch 02/40  listnet=2.8067  kappa=0.996  eta=142.4min
+[15:51:52]   epoch 03/40  listnet=2.7765  kappa=0.991  eta=138.7min
+[15:55:37]   epoch 04/40  listnet=2.7716  kappa=0.986  eta=135.0min
+[15:59:22]   epoch 05/40  listnet=2.7460  kappa=0.983  eta=131.3min
+[16:03:08]   epoch 06/40  listnet=2.7400  kappa=0.978  eta=127.6min
+[16:06:53]   epoch 07/40  listnet=2.7379  kappa=0.974  eta=123.8min
+[16:10:39]   epoch 08/40  listnet=2.7249  kappa=0.971  eta=120.1min
+[16:14:24]   epoch 09/40  listnet=2.7287  kappa=0.967  eta=116.4min
+[16:18:09]   epoch 10/40  listnet=2.7233  kappa=0.963  eta=112.6min
+[16:21:54]   epoch 11/40  listnet=2.7091  kappa=0.959  eta=108.8min
+[16:25:39]   epoch 12/40  listnet=2.7041  kappa=0.956  eta=105.1min
+[16:29:24]   epoch 13/40  listnet=2.7072  kappa=0.954  eta=101.3min
+[16:33:08]   epoch 14/40  listnet=2.7026  kappa=0.950  eta=97.5min
+[16:36:53]   epoch 15/40  listnet=2.6995  kappa=0.947  eta=93.8min
+[16:40:37]   epoch 16/40  listnet=2.6940  kappa=0.944  eta=90.0min
+[16:44:22]   epoch 17/40  listnet=2.6991  kappa=0.942  eta=86.2min
+[16:48:06]   epoch 18/40  listnet=2.6865  kappa=0.940  eta=82.5min
+[16:51:50]   epoch 19/40  listnet=2.6856  kappa=0.938  eta=78.7min
+[16:55:34]   epoch 20/40  listnet=2.6947  kappa=0.936  eta=75.0min
+[16:59:19]   epoch 21/40  listnet=2.6904  kappa=0.934  eta=71.2min
+[17:03:03]   epoch 22/40  listnet=2.6861  kappa=0.932  eta=67.4min
+[17:06:47]   epoch 23/40  listnet=2.6850  kappa=0.931  eta=63.7min
+[17:10:33]   epoch 24/40  listnet=2.6770  kappa=0.929  eta=60.0min
+[17:14:18]   epoch 25/40  listnet=2.6785  kappa=0.928  eta=56.2min
+[17:18:03]   epoch 26/40  listnet=2.6617  kappa=0.927  eta=52.5min
+[17:21:49]   epoch 27/40  listnet=2.6750  kappa=0.926  eta=48.7min
+[17:25:34]   epoch 28/40  listnet=2.6757  kappa=0.925  eta=45.0min
+[17:29:20]   epoch 29/40  listnet=2.6784  kappa=0.925  eta=41.2min
+[17:33:05]   epoch 30/40  listnet=2.6760  kappa=0.924  eta=37.5min
+[17:36:50]   epoch 31/40  listnet=2.6806  kappa=0.923  eta=33.7min
+[17:40:36]   epoch 32/40  listnet=2.6691  kappa=0.923  eta=30.0min
+[17:44:21]   epoch 33/40  listnet=2.6683  kappa=0.923  eta=26.2min
+[17:48:07]   epoch 34/40  listnet=2.6655  kappa=0.923  eta=22.5min
+[17:51:52]   epoch 35/40  listnet=2.6803  kappa=0.922  eta=18.7min
+[17:55:37]   epoch 36/40  listnet=2.6746  kappa=0.922  eta=15.0min
+[17:59:23]   epoch 37/40  listnet=2.6614  kappa=0.922  eta=11.3min
+[18:03:08]   epoch 38/40  listnet=2.6721  kappa=0.922  eta=7.5min
+[18:06:53]   epoch 39/40  listnet=2.6830  kappa=0.922  eta=3.8min
+[18:10:39]   epoch 40/40  listnet=2.6692  kappa=0.922  eta=0.0min
+[18:10:41]   [Bprime_listnet/s0] 01/14  +Smiling                                        R@5=0.1814  (2s)
+[18:10:42]   [Bprime_listnet/s0] 02/14  +Eyeglasses                                     R@5=0.4467  (3s)
+[18:10:43]   [Bprime_listnet/s0] 03/14  -Heavy_Makeup                                   R@5=0.1263  (4s)
+[18:10:44]   [Bprime_listnet/s0] 04/14  +Male                                           R@5=0.3680  (5s)
+[18:10:46]   [Bprime_listnet/s0] 05/14  -Young                                          R@5=0.1888  (6s)
+[18:10:48]   [Bprime_listnet/s0] 06/14  +Blond_Hair                                     R@5=0.2074  (8s)
+[18:10:48]   [Bprime_listnet/s0] 07/14  +Mustache                                       R@5=0.2226  (9s)
+[18:10:50]   [Bprime_listnet/s0] 08/14  -Young                                          R@5=0.1888  (10s)
+[18:10:50]   [Bprime_listnet/s0] 09/14  +Eyeglasses, +Smiling                           R@5=0.5539  (11s)
+[18:10:51]   [Bprime_listnet/s0] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.1948  (12s)
+[18:10:51]   [Bprime_listnet/s0] 11/14  -Male, -Mustache                                R@5=0.2222  (12s)
+[18:10:51]   [Bprime_listnet/s0] 12/14  +Chubby, -Young                                 R@5=0.4418  (12s)
+[18:10:51]   [Bprime_listnet/s0] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.6329  (12s)
+[18:10:51]   [Bprime_listnet/s0] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (12s)
+[18:10:51] B' [lambdaloss seed=0]: 913,017 params, 40 epochs x 101 steps x 64 queries
+[18:14:38]   epoch 01/40  lambdaloss=2.3665  kappa=0.994  eta=147.3min
+[18:18:24]   epoch 02/40  lambdaloss=2.0878  kappa=0.987  eta=143.4min
+[18:22:12]   epoch 03/40  lambdaloss=1.9507  kappa=0.982  eta=139.9min
+[18:25:59]   epoch 04/40  lambdaloss=1.9078  kappa=0.976  eta=136.1min
+[18:29:46]   epoch 05/40  lambdaloss=1.8102  kappa=0.972  eta=132.4min
+[18:33:34]   epoch 06/40  lambdaloss=1.7631  kappa=0.966  eta=128.7min
+[18:37:21]   epoch 07/40  lambdaloss=1.7307  kappa=0.962  eta=124.9min
+[18:41:09]   epoch 08/40  lambdaloss=1.6682  kappa=0.959  eta=121.2min
+[18:44:57]   epoch 09/40  lambdaloss=1.7098  kappa=0.954  eta=117.4min
+[18:48:44]   epoch 10/40  lambdaloss=1.6535  kappa=0.951  eta=113.6min
+[18:52:31]   epoch 11/40  lambdaloss=1.6397  kappa=0.947  eta=109.8min
+[18:56:17]   epoch 12/40  lambdaloss=1.5915  kappa=0.944  eta=106.0min
+[19:00:05]   epoch 13/40  lambdaloss=1.5868  kappa=0.941  eta=102.2min
+[19:03:52]   epoch 14/40  lambdaloss=1.5510  kappa=0.938  eta=98.5min
+[19:07:40]   epoch 15/40  lambdaloss=1.5461  kappa=0.935  eta=94.7min
+[19:11:27]   epoch 16/40  lambdaloss=1.5156  kappa=0.933  eta=90.9min
+[19:15:15]   epoch 17/40  lambdaloss=1.5597  kappa=0.930  eta=87.1min
+[19:19:02]   epoch 18/40  lambdaloss=1.5040  kappa=0.928  eta=83.3min
+[19:22:50]   epoch 19/40  lambdaloss=1.4927  kappa=0.926  eta=79.6min
+[19:26:37]   epoch 20/40  lambdaloss=1.5197  kappa=0.924  eta=75.8min
+[19:30:24]   epoch 21/40  lambdaloss=1.5271  kappa=0.922  eta=72.0min
+[19:34:11]   epoch 22/40  lambdaloss=1.4994  kappa=0.920  eta=68.2min
+[19:37:59]   epoch 23/40  lambdaloss=1.4958  kappa=0.919  eta=64.4min
+[19:41:44]   epoch 24/40  lambdaloss=1.4610  kappa=0.917  eta=60.6min
+[19:45:32]   epoch 25/40  lambdaloss=1.4789  kappa=0.916  eta=56.8min
+[19:49:19]   epoch 26/40  lambdaloss=1.3920  kappa=0.915  eta=53.0min
+[19:53:06]   epoch 27/40  lambdaloss=1.4845  kappa=0.915  eta=49.2min
+[19:56:55]   epoch 28/40  lambdaloss=1.4498  kappa=0.914  eta=45.5min
+[20:00:42]   epoch 29/40  lambdaloss=1.4448  kappa=0.913  eta=41.7min
+[20:04:29]   epoch 30/40  lambdaloss=1.4153  kappa=0.913  eta=37.9min
+[20:08:16]   epoch 31/40  lambdaloss=1.4474  kappa=0.912  eta=34.1min
+[20:12:04]   epoch 32/40  lambdaloss=1.4077  kappa=0.912  eta=30.3min
+[20:15:51]   epoch 33/40  lambdaloss=1.4234  kappa=0.911  eta=26.5min
+[20:19:39]   epoch 34/40  lambdaloss=1.4030  kappa=0.911  eta=22.7min
+[20:23:26]   epoch 35/40  lambdaloss=1.4745  kappa=0.911  eta=18.9min
+[20:27:13]   epoch 36/40  lambdaloss=1.4376  kappa=0.911  eta=15.2min
+[20:31:00]   epoch 37/40  lambdaloss=1.3719  kappa=0.911  eta=11.4min
+[20:34:47]   epoch 38/40  lambdaloss=1.3663  kappa=0.911  eta=7.6min
+[20:38:35]   epoch 39/40  lambdaloss=1.4822  kappa=0.911  eta=3.8min
+[20:42:23]   epoch 40/40  lambdaloss=1.4470  kappa=0.911  eta=0.0min
+[20:42:25]   [Bprime_lambdaloss/s0] 01/14  +Smiling                                        R@5=0.1828  (2s)
+[20:42:25]   [Bprime_lambdaloss/s0] 02/14  +Eyeglasses                                     R@5=0.2746  (3s)
+[20:42:27]   [Bprime_lambdaloss/s0] 03/14  -Heavy_Makeup                                   R@5=0.1404  (4s)
+[20:42:27]   [Bprime_lambdaloss/s0] 04/14  +Male                                           R@5=0.3724  (5s)
+[20:42:29]   [Bprime_lambdaloss/s0] 05/14  -Young                                          R@5=0.1950  (6s)
+[20:42:31]   [Bprime_lambdaloss/s0] 06/14  +Blond_Hair                                     R@5=0.2244  (8s)
+[20:42:31]   [Bprime_lambdaloss/s0] 07/14  +Mustache                                       R@5=0.1927  (9s)
+[20:42:33]   [Bprime_lambdaloss/s0] 08/14  -Young                                          R@5=0.1950  (10s)
+[20:42:34]   [Bprime_lambdaloss/s0] 09/14  +Eyeglasses, +Smiling                           R@5=0.3627  (11s)
+[20:42:34]   [Bprime_lambdaloss/s0] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.1890  (12s)
+[20:42:34]   [Bprime_lambdaloss/s0] 11/14  -Male, -Mustache                                R@5=0.1852  (12s)
+[20:42:35]   [Bprime_lambdaloss/s0] 12/14  +Chubby, -Young                                 R@5=0.3818  (12s)
+[20:42:35]   [Bprime_lambdaloss/s0] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.4304  (12s)
+[20:42:35]   [Bprime_lambdaloss/s0] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (12s)
+[20:42:35] B' [lambdaloss seed=1]: 913,017 params, 40 epochs x 101 steps x 64 queries
+[20:46:22]   epoch 01/40  lambdaloss=2.3267  kappa=0.993  eta=147.9min
+[20:50:10]   epoch 02/40  lambdaloss=2.0595  kappa=0.986  eta=144.2min
+[20:53:58]   epoch 03/40  lambdaloss=1.9866  kappa=0.980  eta=140.4min
+[20:57:45]   epoch 04/40  lambdaloss=1.8462  kappa=0.974  eta=136.5min
+[21:01:31]   epoch 05/40  lambdaloss=1.7694  kappa=0.970  eta=132.6min
+[21:05:19]   epoch 06/40  lambdaloss=1.7948  kappa=0.964  eta=128.8min
+[21:09:08]   epoch 07/40  lambdaloss=1.7055  kappa=0.959  eta=125.2min
+[21:12:56]   epoch 08/40  lambdaloss=1.6704  kappa=0.955  eta=121.4min
+[21:16:44]   epoch 09/40  lambdaloss=1.6974  kappa=0.950  eta=117.6min
+[21:20:30]   epoch 10/40  lambdaloss=1.6396  kappa=0.946  eta=113.8min
+[21:24:17]   epoch 11/40  lambdaloss=1.6312  kappa=0.943  eta=109.9min
+[21:28:05]   epoch 12/40  lambdaloss=1.5827  kappa=0.939  eta=106.2min
+[21:31:53]   epoch 13/40  lambdaloss=1.6110  kappa=0.935  eta=102.4min
+[21:35:39]   epoch 14/40  lambdaloss=1.6169  kappa=0.932  eta=98.5min
+[21:39:26]   epoch 15/40  lambdaloss=1.5670  kappa=0.929  eta=94.7min
+[21:43:13]   epoch 16/40  lambdaloss=1.5868  kappa=0.927  eta=91.0min
+[21:47:01]   epoch 17/40  lambdaloss=1.5670  kappa=0.924  eta=87.2min
+[21:50:48]   epoch 18/40  lambdaloss=1.5451  kappa=0.922  eta=83.4min
+[21:54:35]   epoch 19/40  lambdaloss=1.5019  kappa=0.920  eta=79.6min
+[21:58:22]   epoch 20/40  lambdaloss=1.5139  kappa=0.918  eta=75.8min
+[22:02:09]   epoch 21/40  lambdaloss=1.4989  kappa=0.916  eta=72.0min
+[22:05:56]   epoch 22/40  lambdaloss=1.4587  kappa=0.915  eta=68.2min
+[22:09:44]   epoch 23/40  lambdaloss=1.4450  kappa=0.914  eta=64.4min
+[22:13:31]   epoch 24/40  lambdaloss=1.4726  kappa=0.912  eta=60.6min
+[22:17:18]   epoch 25/40  lambdaloss=1.4503  kappa=0.911  eta=56.8min
+[22:21:05]   epoch 26/40  lambdaloss=1.4555  kappa=0.910  eta=53.0min
+[22:24:52]   epoch 27/40  lambdaloss=1.4272  kappa=0.909  eta=49.2min
+[22:28:39]   epoch 28/40  lambdaloss=1.4677  kappa=0.909  eta=45.5min
+[22:32:26]   epoch 29/40  lambdaloss=1.4329  kappa=0.908  eta=41.7min
+[22:36:13]   epoch 30/40  lambdaloss=1.4267  kappa=0.907  eta=37.9min
+[22:40:00]   epoch 31/40  lambdaloss=1.4061  kappa=0.907  eta=34.1min
+[22:43:47]   epoch 32/40  lambdaloss=1.4051  kappa=0.907  eta=30.3min
+[22:47:35]   epoch 33/40  lambdaloss=1.3991  kappa=0.906  eta=26.5min
+[22:51:21]   epoch 34/40  lambdaloss=1.4145  kappa=0.906  eta=22.7min
+[22:55:09]   epoch 35/40  lambdaloss=1.4171  kappa=0.906  eta=18.9min
+[22:58:57]   epoch 36/40  lambdaloss=1.4241  kappa=0.906  eta=15.2min
+[23:02:43]   epoch 37/40  lambdaloss=1.4261  kappa=0.906  eta=11.4min
+[23:06:31]   epoch 38/40  lambdaloss=1.4169  kappa=0.906  eta=7.6min
+[23:10:18]   epoch 39/40  lambdaloss=1.3878  kappa=0.906  eta=3.8min
+[23:14:05]   epoch 40/40  lambdaloss=1.4289  kappa=0.906  eta=0.0min
+[23:14:07]   [Bprime_lambdaloss/s1] 01/14  +Smiling                                        R@5=0.1891  (2s)
+[23:14:08]   [Bprime_lambdaloss/s1] 02/14  +Eyeglasses                                     R@5=0.2842  (3s)
+[23:14:09]   [Bprime_lambdaloss/s1] 03/14  -Heavy_Makeup                                   R@5=0.1515  (4s)
+[23:14:10]   [Bprime_lambdaloss/s1] 04/14  +Male                                           R@5=0.3962  (5s)
+[23:14:12]   [Bprime_lambdaloss/s1] 05/14  -Young                                          R@5=0.1938  (7s)
+[23:14:14]   [Bprime_lambdaloss/s1] 06/14  +Blond_Hair                                     R@5=0.2234  (9s)
+[23:14:14]   [Bprime_lambdaloss/s1] 07/14  +Mustache                                       R@5=0.1860  (9s)
+[23:14:16]   [Bprime_lambdaloss/s1] 08/14  -Young                                          R@5=0.1938  (11s)
+[23:14:16]   [Bprime_lambdaloss/s1] 09/14  +Eyeglasses, +Smiling                           R@5=0.3742  (11s)
+[23:14:17]   [Bprime_lambdaloss/s1] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.1540  (12s)
+[23:14:17]   [Bprime_lambdaloss/s1] 11/14  -Male, -Mustache                                R@5=0.0741  (12s)
+[23:14:17]   [Bprime_lambdaloss/s1] 12/14  +Chubby, -Young                                 R@5=0.2688  (12s)
+[23:14:17]   [Bprime_lambdaloss/s1] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.3544  (12s)
+[23:14:17]   [Bprime_lambdaloss/s1] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (12s)
+[23:14:17] B' [lambdaloss seed=2]: 913,017 params, 40 epochs x 101 steps x 64 queries
+[23:18:06]   epoch 01/40  lambdaloss=2.3616  kappa=0.993  eta=148.7min
+[23:21:55]   epoch 02/40  lambdaloss=2.0663  kappa=0.989  eta=144.9min
+[23:25:44]   epoch 03/40  lambdaloss=1.9070  kappa=0.983  eta=141.2min
+[23:29:33]   epoch 04/40  lambdaloss=1.8973  kappa=0.977  eta=137.3min
+[23:33:22]   epoch 05/40  lambdaloss=1.8787  kappa=0.972  eta=133.6min
+[23:37:11]   epoch 06/40  lambdaloss=1.7752  kappa=0.967  eta=129.7min
+[23:41:00]   epoch 07/40  lambdaloss=1.7286  kappa=0.963  eta=125.9min
+[23:44:49]   epoch 08/40  lambdaloss=1.6839  kappa=0.959  eta=122.1min
+[23:48:38]   epoch 09/40  lambdaloss=1.6855  kappa=0.955  eta=118.3min
+[23:52:27]   epoch 10/40  lambdaloss=1.6722  kappa=0.952  eta=114.5min
+[23:56:16]   epoch 11/40  lambdaloss=1.6315  kappa=0.948  eta=110.7min
+[00:00:05]   epoch 12/40  lambdaloss=1.5819  kappa=0.945  eta=106.8min
+[00:03:54]   epoch 13/40  lambdaloss=1.5538  kappa=0.943  eta=103.0min
+[00:07:42]   epoch 14/40  lambdaloss=1.5661  kappa=0.940  eta=99.2min
+[00:11:32]   epoch 15/40  lambdaloss=1.6093  kappa=0.937  eta=95.4min
+[00:15:20]   epoch 16/40  lambdaloss=1.5450  kappa=0.934  eta=91.6min
+[00:19:09]   epoch 17/40  lambdaloss=1.5446  kappa=0.931  eta=87.8min
+[00:22:58]   epoch 18/40  lambdaloss=1.5593  kappa=0.929  eta=83.9min
+[00:26:47]   epoch 19/40  lambdaloss=1.5001  kappa=0.927  eta=80.1min
+[00:30:36]   epoch 20/40  lambdaloss=1.5186  kappa=0.926  eta=76.3min
+[00:34:25]   epoch 21/40  lambdaloss=1.4595  kappa=0.924  eta=72.5min
+[00:38:13]   epoch 22/40  lambdaloss=1.4807  kappa=0.923  eta=68.7min
+[00:42:02]   epoch 23/40  lambdaloss=1.4657  kappa=0.921  eta=64.9min
+[00:45:51]   epoch 24/40  lambdaloss=1.4637  kappa=0.920  eta=61.0min
+[00:49:41]   epoch 25/40  lambdaloss=1.4271  kappa=0.919  eta=57.2min
+[00:53:31]   epoch 26/40  lambdaloss=1.4374  kappa=0.918  eta=53.4min
+[00:57:19]   epoch 27/40  lambdaloss=1.4614  kappa=0.917  eta=49.6min
+[01:01:08]   epoch 28/40  lambdaloss=1.4422  kappa=0.916  eta=45.8min
+[01:04:57]   epoch 29/40  lambdaloss=1.4307  kappa=0.916  eta=42.0min
+[01:08:46]   epoch 30/40  lambdaloss=1.4136  kappa=0.915  eta=38.2min
+[01:12:36]   epoch 31/40  lambdaloss=1.3970  kappa=0.915  eta=34.3min
+[01:16:25]   epoch 32/40  lambdaloss=1.4560  kappa=0.914  eta=30.5min
+[01:20:14]   epoch 33/40  lambdaloss=1.4326  kappa=0.914  eta=26.7min
+[01:24:03]   epoch 34/40  lambdaloss=1.4137  kappa=0.913  eta=22.9min
+[01:27:52]   epoch 35/40  lambdaloss=1.4429  kappa=0.913  eta=19.1min
+[01:31:40]   epoch 36/40  lambdaloss=1.3907  kappa=0.913  eta=15.3min
+[01:35:30]   epoch 37/40  lambdaloss=1.4162  kappa=0.913  eta=11.4min
+[01:39:19]   epoch 38/40  lambdaloss=1.4534  kappa=0.913  eta=7.6min
+[01:43:08]   epoch 39/40  lambdaloss=1.4067  kappa=0.913  eta=3.8min
+[01:46:57]   epoch 40/40  lambdaloss=1.4394  kappa=0.913  eta=0.0min
+[01:46:59]   [Bprime_lambdaloss/s2] 01/14  +Smiling                                        R@5=0.1841  (2s)
+[01:47:00]   [Bprime_lambdaloss/s2] 02/14  +Eyeglasses                                     R@5=0.2773  (3s)
+[01:47:01]   [Bprime_lambdaloss/s2] 03/14  -Heavy_Makeup                                   R@5=0.1581  (4s)
+[01:47:02]   [Bprime_lambdaloss/s2] 04/14  +Male                                           R@5=0.3818  (5s)
+[01:47:04]   [Bprime_lambdaloss/s2] 05/14  -Young                                          R@5=0.1935  (6s)
+[01:47:06]   [Bprime_lambdaloss/s2] 06/14  +Blond_Hair                                     R@5=0.2267  (8s)
+[01:47:06]   [Bprime_lambdaloss/s2] 07/14  +Mustache                                       R@5=0.1927  (9s)
+[01:47:08]   [Bprime_lambdaloss/s2] 08/14  -Young                                          R@5=0.1935  (10s)
+[01:47:08]   [Bprime_lambdaloss/s2] 09/14  +Eyeglasses, +Smiling                           R@5=0.2761  (11s)
+[01:47:09]   [Bprime_lambdaloss/s2] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.1800  (12s)
+[01:47:09]   [Bprime_lambdaloss/s2] 11/14  -Male, -Mustache                                R@5=0.1481  (12s)
+[01:47:09]   [Bprime_lambdaloss/s2] 12/14  +Chubby, -Young                                 R@5=0.1798  (12s)
+[01:47:09]   [Bprime_lambdaloss/s2] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.2658  (12s)
+[01:47:09]   [Bprime_lambdaloss/s2] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (12s)
+[01:47:09] B' [lambdaloss no-qv seed=0]: 913,017 params, 40 epochs x 101 steps x 64 queries
+[01:50:57]   epoch 01/40  lambdaloss=2.3851  kappa=0.993  eta=148.0min
+[01:54:44]   epoch 02/40  lambdaloss=2.1242  kappa=0.987  eta=144.0min
+[01:58:32]   epoch 03/40  lambdaloss=2.0021  kappa=0.982  eta=140.4min
+[02:02:20]   epoch 04/40  lambdaloss=1.9676  kappa=0.976  eta=136.6min
+[02:06:07]   epoch 05/40  lambdaloss=1.8611  kappa=0.972  eta=132.8min
+[02:09:56]   epoch 06/40  lambdaloss=1.8243  kappa=0.967  eta=129.0min
+[02:13:43]   epoch 07/40  lambdaloss=1.7971  kappa=0.962  eta=125.2min
+[02:17:31]   epoch 08/40  lambdaloss=1.7369  kappa=0.959  eta=121.5min
+[02:21:20]   epoch 09/40  lambdaloss=1.7801  kappa=0.955  eta=117.7min
+[02:25:07]   epoch 10/40  lambdaloss=1.7188  kappa=0.951  eta=113.9min
+[02:28:55]   epoch 11/40  lambdaloss=1.7142  kappa=0.947  eta=110.1min
+[02:32:43]   epoch 12/40  lambdaloss=1.6608  kappa=0.944  eta=106.3min
+[02:36:31]   epoch 13/40  lambdaloss=1.6631  kappa=0.941  eta=102.5min
+[02:40:19]   epoch 14/40  lambdaloss=1.6329  kappa=0.938  eta=98.7min
+[02:44:07]   epoch 15/40  lambdaloss=1.6285  kappa=0.935  eta=95.0min
+[02:47:55]   epoch 16/40  lambdaloss=1.5950  kappa=0.933  eta=91.2min
+[02:51:43]   epoch 17/40  lambdaloss=1.6421  kappa=0.931  eta=87.4min
+[02:55:31]   epoch 18/40  lambdaloss=1.5793  kappa=0.928  eta=83.6min
+[02:59:19]   epoch 19/40  lambdaloss=1.5677  kappa=0.927  eta=79.8min
+[03:03:07]   epoch 20/40  lambdaloss=1.6015  kappa=0.925  eta=76.0min
+[03:06:55]   epoch 21/40  lambdaloss=1.6141  kappa=0.923  eta=72.2min
+[03:10:43]   epoch 22/40  lambdaloss=1.5767  kappa=0.921  eta=68.4min
+[03:14:31]   epoch 23/40  lambdaloss=1.5851  kappa=0.920  eta=64.6min
+[03:18:18]   epoch 24/40  lambdaloss=1.5520  kappa=0.918  eta=60.8min
+[03:22:07]   epoch 25/40  lambdaloss=1.5634  kappa=0.917  eta=57.0min
+[03:25:54]   epoch 26/40  lambdaloss=1.4712  kappa=0.916  eta=53.2min
+[03:29:43]   epoch 27/40  lambdaloss=1.5760  kappa=0.915  eta=49.4min
+[03:33:31]   epoch 28/40  lambdaloss=1.5397  kappa=0.915  eta=45.6min
+[03:37:19]   epoch 29/40  lambdaloss=1.5420  kappa=0.914  eta=41.8min
+[03:41:06]   epoch 30/40  lambdaloss=1.5058  kappa=0.913  eta=38.0min
+[03:44:54]   epoch 31/40  lambdaloss=1.5376  kappa=0.913  eta=34.2min
+[03:48:43]   epoch 32/40  lambdaloss=1.5077  kappa=0.913  eta=30.4min
+[03:52:30]   epoch 33/40  lambdaloss=1.5146  kappa=0.912  eta=26.6min
+[03:56:18]   epoch 34/40  lambdaloss=1.4848  kappa=0.912  eta=22.8min
+[04:00:06]   epoch 35/40  lambdaloss=1.5627  kappa=0.912  eta=19.0min
+[04:03:54]   epoch 36/40  lambdaloss=1.5270  kappa=0.912  eta=15.2min
+[04:07:42]   epoch 37/40  lambdaloss=1.4672  kappa=0.912  eta=11.4min
+[04:11:30]   epoch 38/40  lambdaloss=1.4538  kappa=0.912  eta=7.6min
+[04:15:18]   epoch 39/40  lambdaloss=1.5643  kappa=0.912  eta=3.8min
+[04:19:06]   epoch 40/40  lambdaloss=1.5380  kappa=0.912  eta=0.0min
+[04:19:08]   [Bprime_lambdaloss_noqv/s0] 01/14  +Smiling                                        R@5=0.1918  (2s)
+[04:19:08]   [Bprime_lambdaloss_noqv/s0] 02/14  +Eyeglasses                                     R@5=0.3270  (2s)
+[04:19:10]   [Bprime_lambdaloss_noqv/s0] 03/14  -Heavy_Makeup                                   R@5=0.1507  (4s)
+[04:19:10]   [Bprime_lambdaloss_noqv/s0] 04/14  +Male                                           R@5=0.3950  (5s)
+[04:19:12]   [Bprime_lambdaloss_noqv/s0] 05/14  -Young                                          R@5=0.1905  (6s)
+[04:19:14]   [Bprime_lambdaloss_noqv/s0] 06/14  +Blond_Hair                                     R@5=0.1986  (8s)
+[04:19:14]   [Bprime_lambdaloss_noqv/s0] 07/14  +Mustache                                       R@5=0.1894  (8s)
+[04:19:16]   [Bprime_lambdaloss_noqv/s0] 08/14  -Young                                          R@5=0.1905  (10s)
+[04:19:16]   [Bprime_lambdaloss_noqv/s0] 09/14  +Eyeglasses, +Smiling                           R@5=0.4101  (11s)
+[04:19:17]   [Bprime_lambdaloss_noqv/s0] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.1474  (11s)
+[04:19:17]   [Bprime_lambdaloss_noqv/s0] 11/14  -Male, -Mustache                                R@5=0.2222  (11s)
+[04:19:18]   [Bprime_lambdaloss_noqv/s0] 12/14  +Chubby, -Young                                 R@5=0.2432  (12s)
+[04:19:18]   [Bprime_lambdaloss_noqv/s0] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.3797  (12s)
+[04:19:18]   [Bprime_lambdaloss_noqv/s0] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0000  (12s)
+[04:19:18] B' [lambdaloss no-qv seed=1]: 913,017 params, 40 epochs x 101 steps x 64 queries
+[04:23:03]   epoch 01/40  lambdaloss=2.3524  kappa=0.993  eta=146.6min
+[04:26:49]   epoch 02/40  lambdaloss=2.1026  kappa=0.986  eta=143.0min
+[04:30:34]   epoch 03/40  lambdaloss=2.0340  kappa=0.980  eta=139.1min
+[04:34:21]   epoch 04/40  lambdaloss=1.8941  kappa=0.974  eta=135.4min
+[04:38:05]   epoch 05/40  lambdaloss=1.8222  kappa=0.970  eta=131.5min
+[04:41:51]   epoch 06/40  lambdaloss=1.8537  kappa=0.964  eta=127.8min
+[04:45:38]   epoch 07/40  lambdaloss=1.7653  kappa=0.960  eta=124.1min
+[04:49:24]   epoch 08/40  lambdaloss=1.7415  kappa=0.955  eta=120.4min
+[04:53:09]   epoch 09/40  lambdaloss=1.7616  kappa=0.950  eta=116.6min
+[04:56:54]   epoch 10/40  lambdaloss=1.7061  kappa=0.947  eta=112.8min
+[05:00:40]   epoch 11/40  lambdaloss=1.7095  kappa=0.943  eta=109.1min
+[05:04:26]   epoch 12/40  lambdaloss=1.6544  kappa=0.940  eta=105.3min
+[05:08:11]   epoch 13/40  lambdaloss=1.6869  kappa=0.935  eta=101.5min
+[05:11:57]   epoch 14/40  lambdaloss=1.6872  kappa=0.933  eta=97.8min
+[05:15:43]   epoch 15/40  lambdaloss=1.6469  kappa=0.930  eta=94.0min
+[05:19:32]   epoch 16/40  lambdaloss=1.6641  kappa=0.927  eta=90.4min
+[05:23:18]   epoch 17/40  lambdaloss=1.6565  kappa=0.925  eta=86.6min
+[05:27:04]   epoch 18/40  lambdaloss=1.6262  kappa=0.923  eta=82.8min
+[05:30:50]   epoch 19/40  lambdaloss=1.5760  kappa=0.921  eta=79.1min
+[05:34:37]   epoch 20/40  lambdaloss=1.5966  kappa=0.919  eta=75.3min
+[05:38:23]   epoch 21/40  lambdaloss=1.5787  kappa=0.917  eta=71.5min
+[05:42:08]   epoch 22/40  lambdaloss=1.5364  kappa=0.916  eta=67.8min
+[05:45:55]   epoch 23/40  lambdaloss=1.5379  kappa=0.915  eta=64.0min
+[05:49:40]   epoch 24/40  lambdaloss=1.5648  kappa=0.913  eta=60.2min
+[05:53:25]   epoch 25/40  lambdaloss=1.5303  kappa=0.912  eta=56.5min
+[05:57:11]   epoch 26/40  lambdaloss=1.5433  kappa=0.911  eta=52.7min
+[06:00:57]   epoch 27/40  lambdaloss=1.5297  kappa=0.910  eta=48.9min
+[06:04:42]   epoch 28/40  lambdaloss=1.5601  kappa=0.910  eta=45.2min
+[06:08:27]   epoch 29/40  lambdaloss=1.5149  kappa=0.909  eta=41.4min
+[06:12:13]   epoch 30/40  lambdaloss=1.5157  kappa=0.908  eta=37.6min
+[06:15:58]   epoch 31/40  lambdaloss=1.4851  kappa=0.908  eta=33.9min
+[06:19:44]   epoch 32/40  lambdaloss=1.4872  kappa=0.908  eta=30.1min
+[06:23:31]   epoch 33/40  lambdaloss=1.4895  kappa=0.907  eta=26.3min
+[06:27:17]   epoch 34/40  lambdaloss=1.5042  kappa=0.907  eta=22.6min
+[06:31:02]   epoch 35/40  lambdaloss=1.5034  kappa=0.907  eta=18.8min
+[06:34:49]   epoch 36/40  lambdaloss=1.5126  kappa=0.907  eta=15.1min
+[06:38:34]   epoch 37/40  lambdaloss=1.5192  kappa=0.907  eta=11.3min
+[06:42:20]   epoch 38/40  lambdaloss=1.5073  kappa=0.907  eta=7.5min
+[06:46:06]   epoch 39/40  lambdaloss=1.4741  kappa=0.907  eta=3.8min
+[06:49:52]   epoch 40/40  lambdaloss=1.5182  kappa=0.907  eta=0.0min
+[06:49:54]   [Bprime_lambdaloss_noqv/s1] 01/14  +Smiling                                        R@5=0.1985  (2s)
+[06:49:54]   [Bprime_lambdaloss_noqv/s1] 02/14  +Eyeglasses                                     R@5=0.3338  (2s)
+[06:49:56]   [Bprime_lambdaloss_noqv/s1] 03/14  -Heavy_Makeup                                   R@5=0.1537  (4s)
+[06:49:56]   [Bprime_lambdaloss_noqv/s1] 04/14  +Male                                           R@5=0.4006  (5s)
+[06:49:58]   [Bprime_lambdaloss_noqv/s1] 05/14  -Young                                          R@5=0.1899  (6s)
+[06:50:00]   [Bprime_lambdaloss_noqv/s1] 06/14  +Blond_Hair                                     R@5=0.2031  (8s)
+[06:50:00]   [Bprime_lambdaloss_noqv/s1] 07/14  +Mustache                                       R@5=0.1827  (8s)
+[06:50:02]   [Bprime_lambdaloss_noqv/s1] 08/14  -Young                                          R@5=0.1899  (10s)
+[06:50:02]   [Bprime_lambdaloss_noqv/s1] 09/14  +Eyeglasses, +Smiling                           R@5=0.4036  (11s)
+[06:50:03]   [Bprime_lambdaloss_noqv/s1] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.1279  (11s)
+[06:50:03]   [Bprime_lambdaloss_noqv/s1] 11/14  -Male, -Mustache                                R@5=0.1111  (11s)
+[06:50:04]   [Bprime_lambdaloss_noqv/s1] 12/14  +Chubby, -Young                                 R@5=0.1729  (12s)
+[06:50:04]   [Bprime_lambdaloss_noqv/s1] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.3671  (12s)
+[06:50:04]   [Bprime_lambdaloss_noqv/s1] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0294  (12s)
+[06:50:04] B' [lambdaloss no-qv seed=2]: 913,017 params, 40 epochs x 101 steps x 64 queries
+[06:53:49]   epoch 01/40  lambdaloss=2.3811  kappa=0.993  eta=146.5min
+[06:57:36]   epoch 02/40  lambdaloss=2.1162  kappa=0.988  eta=143.1min
+[07:01:23]   epoch 03/40  lambdaloss=1.9510  kappa=0.982  eta=139.6min
+[07:05:08]   epoch 04/40  lambdaloss=1.9452  kappa=0.977  eta=135.7min
+[07:08:55]   epoch 05/40  lambdaloss=1.9353  kappa=0.972  eta=132.0min
+[07:12:41]   epoch 06/40  lambdaloss=1.8322  kappa=0.967  eta=128.2min
+[07:16:27]   epoch 07/40  lambdaloss=1.7888  kappa=0.963  eta=124.4min
+[07:20:14]   epoch 08/40  lambdaloss=1.7392  kappa=0.960  eta=120.7min
+[07:24:01]   epoch 09/40  lambdaloss=1.7556  kappa=0.955  eta=117.0min
+[07:27:48]   epoch 10/40  lambdaloss=1.7474  kappa=0.952  eta=113.2min
+[07:31:35]   epoch 11/40  lambdaloss=1.6975  kappa=0.948  eta=109.5min
+[07:35:21]   epoch 12/40  lambdaloss=1.6541  kappa=0.945  eta=105.7min
+[07:39:08]   epoch 13/40  lambdaloss=1.6234  kappa=0.943  eta=101.9min
+[07:42:54]   epoch 14/40  lambdaloss=1.6339  kappa=0.940  eta=98.1min
+[07:46:41]   epoch 15/40  lambdaloss=1.6751  kappa=0.937  eta=94.4min
+[07:50:27]   epoch 16/40  lambdaloss=1.6125  kappa=0.934  eta=90.6min
+[07:54:13]   epoch 17/40  lambdaloss=1.6157  kappa=0.931  eta=86.8min
+[07:58:00]   epoch 18/40  lambdaloss=1.6353  kappa=0.929  eta=83.0min
+[08:01:46]   epoch 19/40  lambdaloss=1.5855  kappa=0.927  eta=79.3min
+[08:05:32]   epoch 20/40  lambdaloss=1.5999  kappa=0.926  eta=75.5min
+[08:09:19]   epoch 21/40  lambdaloss=1.5464  kappa=0.924  eta=71.7min
+[08:13:04]   epoch 22/40  lambdaloss=1.5611  kappa=0.922  eta=67.9min
+[08:16:51]   epoch 23/40  lambdaloss=1.5492  kappa=0.921  eta=64.1min
+[08:20:37]   epoch 24/40  lambdaloss=1.5401  kappa=0.919  eta=60.4min
+[08:24:24]   epoch 25/40  lambdaloss=1.5199  kappa=0.918  eta=56.6min
+[08:28:11]   epoch 26/40  lambdaloss=1.5290  kappa=0.917  eta=52.8min
+[08:31:57]   epoch 27/40  lambdaloss=1.5421  kappa=0.917  eta=49.1min
+[08:35:43]   epoch 28/40  lambdaloss=1.5342  kappa=0.916  eta=45.3min
+[08:39:30]   epoch 29/40  lambdaloss=1.5144  kappa=0.915  eta=41.5min
+[08:43:16]   epoch 30/40  lambdaloss=1.4922  kappa=0.914  eta=37.7min
+[08:47:02]   epoch 31/40  lambdaloss=1.4861  kappa=0.914  eta=34.0min
+[08:50:47]   epoch 32/40  lambdaloss=1.5464  kappa=0.914  eta=30.2min
+[08:54:32]   epoch 33/40  lambdaloss=1.5168  kappa=0.913  eta=26.4min
+[08:58:17]   epoch 34/40  lambdaloss=1.5047  kappa=0.913  eta=22.6min
+[09:02:02]   epoch 35/40  lambdaloss=1.5344  kappa=0.913  eta=18.9min
+[09:05:47]   epoch 36/40  lambdaloss=1.4745  kappa=0.913  eta=15.1min
+[09:09:32]   epoch 37/40  lambdaloss=1.5029  kappa=0.913  eta=11.3min
+[09:13:17]   epoch 38/40  lambdaloss=1.5363  kappa=0.913  eta=7.5min
+[09:17:02]   epoch 39/40  lambdaloss=1.4972  kappa=0.913  eta=3.8min
+[09:20:48]   epoch 40/40  lambdaloss=1.5299  kappa=0.913  eta=0.0min
+[09:20:50]   [Bprime_lambdaloss_noqv/s2] 01/14  +Smiling                                        R@5=0.1853  (2s)
+[09:20:51]   [Bprime_lambdaloss_noqv/s2] 02/14  +Eyeglasses                                     R@5=0.3370  (2s)
+[09:20:52]   [Bprime_lambdaloss_noqv/s2] 03/14  -Heavy_Makeup                                   R@5=0.1701  (4s)
+[09:20:53]   [Bprime_lambdaloss_noqv/s2] 04/14  +Male                                           R@5=0.3937  (4s)
+[09:20:55]   [Bprime_lambdaloss_noqv/s2] 05/14  -Young                                          R@5=0.1894  (6s)
+[09:20:57]   [Bprime_lambdaloss_noqv/s2] 06/14  +Blond_Hair                                     R@5=0.1993  (8s)
+[09:20:57]   [Bprime_lambdaloss_noqv/s2] 07/14  +Mustache                                       R@5=0.2093  (8s)
+[09:20:59]   [Bprime_lambdaloss_noqv/s2] 08/14  -Young                                          R@5=0.1894  (10s)
+[09:20:59]   [Bprime_lambdaloss_noqv/s2] 09/14  +Eyeglasses, +Smiling                           R@5=0.3170  (11s)
+[09:21:00]   [Bprime_lambdaloss_noqv/s2] 10/14  +Black_Hair, -Wavy_Hair                         R@5=0.1481  (11s)
+[09:21:00]   [Bprime_lambdaloss_noqv/s2] 11/14  -Male, -Mustache                                R@5=0.2222  (11s)
+[09:21:00]   [Bprime_lambdaloss_noqv/s2] 12/14  +Chubby, -Young                                 R@5=0.1541  (12s)
+[09:21:00]   [Bprime_lambdaloss_noqv/s2] 13/14  -Smiling, +Eyeglasses, +Wearing_Hat             R@5=0.2911  (12s)
+[09:21:00]   [Bprime_lambdaloss_noqv/s2] 14/14  +Wearing_Lipstick, -Heavy_Makeup, +Smiling      R@5=0.0294  (12s)
+[09:21:00] SUMMARY  A_tier4repro                 R@1=0.0868  R@5=0.2596  R@10=0.3554
+[09:21:00] SUMMARY  A_C1                         R@1=0.0726  R@5=0.2598  R@10=0.3787
+[09:21:00] SUMMARY  A_C1C2                       R@1=0.0764  R@5=0.2500  R@10=0.3533
+[09:21:00] SUMMARY  A_C1C2C3                     R@1=0.0742  R@5=0.2747  R@10=0.3656
+[09:21:00] SUMMARY  Aprime_C4                    R@1=0.0759  R@5=0.2626  R@10=0.3720
+[09:21:00] SUMMARY  Aprime_C5                    R@1=0.0686  R@5=0.2449  R@10=0.3335
+[09:21:00] SUMMARY  Aprime_C4C5                  R@1=0.0724  R@5=0.2524  R@10=0.3574
+[09:21:00] SUMMARY  Bprime_listnet_seed0         R@1=0.1104  R@5=0.2913  R@10=0.4128
+[09:21:00] SUMMARY  Bprime_lambdaloss_seed0      R@1=0.0811  R@5=0.2409  R@10=0.3468
+[09:21:00] SUMMARY  Bprime_lambdaloss_seed1      R@1=0.0751  R@5=0.2192  R@10=0.3332
+[09:21:00] SUMMARY  Bprime_lambdaloss_seed2      R@1=0.0653  R@5=0.2049  R@10=0.3144
+[09:21:00] SUMMARY  Bprime_lambdaloss_noqv_seed0 R@1=0.0740  R@5=0.2343  R@10=0.3518
+[09:21:00] SUMMARY  Bprime_lambdaloss_noqv_seed1 R@1=0.0661  R@5=0.2211  R@10=0.3244
+[09:21:00] SUMMARY  Bprime_lambdaloss_noqv_seed2 R@1=0.0579  R@5=0.2189  R@10=0.3262
+[09:21:00] Baselines — tier4 Stage A R@5 0.2596 | Stage B R@5 0.2811 (NextStep.md Part I)
