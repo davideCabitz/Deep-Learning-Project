@@ -5,6 +5,10 @@ Reproduces the spec §3.1.1 relaxed-Hamming protocol on AwA2. Because AwA2 attri
 CLASS-level, ground truth collapses to a 50×50 class relation, then expands to images:
 
   For query (T⁺, T⁻) and source image with class c_s:
+    valid SOURCE class c_s  iff  (0) c_s VIOLATES every ± constraint — each axis must demand
+                                     a real modification (matches the CelebA official policy,
+                                     proven by generate_custom_gt.py's exact reconstruction;
+                                     without it, satisfying-class sources are twin retrieval).
     valid target CLASS c_t  iff  (1) c_t strictly satisfies every ± constraint, AND
                                   (2) Hamming(class_attr[c_s], class_attr[c_t]) ≤ 2 on the
                                       NON-queried attributes (identity preserved).
@@ -72,6 +76,19 @@ def query_indices(query_str: str) -> tuple[list[int], list[int], list[int]]:
     return pi, ni, free
 
 
+def _source_class_mask(class_matrix, pi, ni):
+    # Source policy clause 0 — a source class must VIOLATE every ± constraint (mirror of
+    # generate_custom_gt._source_mask, whose exact reconstruction of the official CelebA
+    # JSON proved this is the instructor protocol). Without it, images of satisfying
+    # classes are twin-retrieval sources: their own class is a valid target at Hamming 0.
+    viol = torch.ones(class_matrix.shape[0], dtype=torch.bool)
+    for a in pi:
+        viol &= class_matrix[:, a] == 0
+    for b in ni:
+        viol &= class_matrix[:, b] == 1
+    return viol
+
+
 def _valid_target_classes(class_matrix, pi, ni, free, src_class):
     # Boolean mask over the 50 classes: strict ± satisfaction + Hamming ≤ 2 on free attrs
     # relative to src_class. class_matrix is [50, 85] in {0,1}.
@@ -97,8 +114,11 @@ def build_ground_truth(query_str, class_matrix, test_labels, gen):
     # Per-class list of test-image indices (split-local).
     class_to_imgs = {c: (test_labels == c).nonzero(as_tuple=True)[0] for c in range(n_classes)}
 
+    source_ok = _source_class_mask(class_matrix, pi, ni)
     ground_truth = {}
     for src_class in range(n_classes):
+        if not source_ok[src_class]:
+            continue
         valid_mask = _valid_target_classes(class_matrix, pi, ni, free, src_class)
         target_imgs = torch.cat([class_to_imgs[c] for c in range(n_classes) if valid_mask[c]]) \
             if valid_mask.any() else torch.empty(0, dtype=torch.long)
@@ -106,8 +126,8 @@ def build_ground_truth(query_str, class_matrix, test_labels, gen):
             continue
 
         sources = class_to_imgs[src_class]
-        # Source self-exclusion happens at scoring time (§5); a source may sit inside the
-        # target class, so remove it from its own target list here for a clean GT set.
+        # Safety only: under clause 0 a source class violates the constraints, so it can
+        # never be a valid target class — the filter below is a no-op kept as a guard.
         for s in sources.tolist():
             tgt = target_imgs[target_imgs != s]
             if len(tgt) < MIN_TARGETS:
@@ -185,6 +205,16 @@ def main():
         gt_list.append({"query": q, "ground_truth": gt})
         print(f"  {q:<34s} sources={len(gt):3d}  disc={disc:.3f}")
 
+    if not gt_list:
+        # Structural finding, not a failure of this code (report §11): under clause 0 a
+        # source class violates the constraints while a target class satisfies them, so
+        # they are different species — and inter-class free-attribute Hamming (min 3,
+        # median ~20 of 85) always exceeds the spec's identity radius of 2. Class-level
+        # attributes admit NO valid compositional-edit benchmark; refuse to freeze one.
+        raise SystemExit("[FAIL] No query has a single valid source under the corrected "
+                         "protocol — AwA2's class-level attributes are structurally "
+                         "incompatible with the §3.1.1 edit rule (see report §11). "
+                         "Not writing an empty benchmark JSON.")
     eval_dir = _get_project_root() / "Evaluation"
     eval_dir.mkdir(exist_ok=True)
     json_path = eval_dir / "awa2_evaluation.json"

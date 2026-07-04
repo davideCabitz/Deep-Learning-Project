@@ -50,6 +50,18 @@ def test_negative_constraint_excludes_classes():
     assert mask[0].item() is True
 
 
+def test_source_policy_excludes_satisfying_classes():
+    # Clause 0 (violate-every-constraint, the verified CelebA official policy): classes
+    # already satisfying the constraints are twin-retrieval sources and must be excluded.
+    cm = _toy_matrix()
+    # "+attr0": every toy class satisfies it -> NO class is a valid source.
+    assert gg._source_class_mask(cm, [0], []).tolist() == [False, False, False, False]
+    # "-attr4": c1, c3 have attr4=1 (violate the constraint) -> only they are sources.
+    assert gg._source_class_mask(cm, [], [4]).tolist() == [False, True, False, True]
+    # Mixed "+attr1, -attr4": source needs attr1=0 AND attr4=1 -> only c1.
+    assert gg._source_class_mask(cm, [1], [4]).tolist() == [False, True, False, False]
+
+
 def test_min_targets_floor():
     # A valid target class with < MIN_TARGETS images ⇒ source dropped (viability floor).
     # Exercised via the class-mask core (matrix-agnostic; build_ground_truth's query parse
@@ -81,14 +93,23 @@ def test_generated_json_is_eval_compatible():
         pytest.skip("awa2_evaluation.json not generated yet (run src/awa2/generate_gt.py)")
     gt = load_eval_json(json_path)
     assert len(gt) >= 1
+    from awa2.data_loader import load_class_attribute_matrix, load_class_labels
+    try:
+        cm, labels = load_class_attribute_matrix(), load_class_labels("test")
+    except FileNotFoundError:
+        cm = labels = None                              # split not built on this machine
     for entry in gt:
         assert set(entry.keys()) == {"query", "ground_truth"}
         pos, neg = parse_query(entry["query"])          # must parse without error
         assert pos or neg
+        pi, ni, _ = gg.query_indices(entry["query"])
         for src, targets in entry["ground_truth"].items():
             assert int(src) >= 0
             assert len(targets) >= gg.MIN_TARGETS
             assert int(src) not in targets              # source excluded from its targets
+            if cm is not None:                          # clause 0: source violates all
+                c = labels[int(src)]
+                assert all(cm[c, a] == 0 for a in pi) and all(cm[c, b] == 1 for b in ni)
 
 
 if __name__ == "__main__":

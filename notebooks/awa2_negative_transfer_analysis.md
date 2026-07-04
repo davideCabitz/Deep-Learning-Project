@@ -1,6 +1,17 @@
 # AwA2 Transfer Study — Why the CelebA Ranking Inverts, and What It Reveals About CLIP
 
-**Status:** complete — seven methods evaluated, mechanism diagnosed (for the final report)
+> **⚠ SUPERSEDED (2026-07-04) — read report §11 instead.** The benchmark this document
+> analyzes predates the source-policy discovery (a valid source must VIOLATE every ±
+> constraint, proven by `generate_custom_gt.py --verify-official`'s exact reconstruction of
+> the official CelebA JSON). Every source in it already satisfied its query's constraints,
+> so all numbers below measure a **class-retrieval surrogate**, not the spec edit task —
+> which is structurally EMPTY on AwA2's class-level attributes (nearest legitimate target
+> class sits at free-Hamming 3–21 ≫ the spec radius 2; `src/awa2/generate_gt.py` now
+> refuses to freeze it). The GT was renamed `Evaluation/awa2_surrogate_class_retrieval.json`.
+> The mechanism analysis below remains valid *for the surrogate task*; the report notebook
+> §11 carries the corrected framing.
+
+**Status:** superseded as a transfer study; retained as the surrogate-task mechanism analysis
 **Artifacts:** `output/awa2/*.csv`, `output/awa2/per_source/*.npz`, `output/awa2/tier5_diag_*.csv`
 
 ---

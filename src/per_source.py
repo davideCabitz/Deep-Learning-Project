@@ -70,9 +70,11 @@ def dump_all(gt_list: list[dict], make_get_ranking, ks=KS) -> dict[str, dict[str
 
 # Parity gate — a dump is only trustworthy if its means reproduce the published CSV.
 # Recomputes each query's macro metrics from the per-source arrays and compares against
-# the CSV row (written at 4 decimals, so tolerance is half an ulp of that format).
+# the CSV row (written at 4 decimals, so tolerance is half an ulp of that format —
+# INCLUSIVE: a mean landing exactly on .xxxx5 is formatted half-to-even, putting the
+# true error at exactly 5e-5, so the bound carries a float-eps margin).
 def check_parity_with_csv(dump: dict[str, dict[str, np.ndarray]], csv_path: Path,
-                          ks=KS, atol: float = 5e-5) -> None:
+                          ks=KS, atol: float = 5.5e-5) -> None:
     import csv as _csv
     with open(csv_path, newline="", encoding="utf-8") as f:
         rows = {r["query"]: r for r in _csv.DictReader(f)}
