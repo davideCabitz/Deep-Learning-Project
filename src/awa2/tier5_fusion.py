@@ -29,60 +29,8 @@ import torch
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from awa2 import data_loader as awa2_data
-from awa2.data_loader import ATTRIBUTE_NAMES as AWA2_NAMES
-from awa2.data_loader import N_ATTRS, _get_artifacts_dir
-
-
-def configure_awa2() -> None:
-    # THE adapter seam: rebind the CelebA-bound globals in tier4_bayes / tier5_cdbayes /
-    # tier1_GDE to AwA2's providers BEFORE any of their functions run. Centralized here so
-    # the coupling is visible in one place rather than scattered across call sites.
-    import tier1_GDE
-    import tier3_dgp
-    import tier4_bayes
-    import tier5_cdbayes as t5
-    import vm_pipeline
-
-    attr_to_idx = {name: i for i, name in enumerate(AWA2_NAMES)}
-
-    # 1. Attribute cardinality + name/index tables (used for free-set + multi-hot builds,
-    #    QueryGenerator's index→name mapping in tier3_dgp, and vm_pipeline.query_indices
-    #    which evaluate_scorer calls to parse each benchmark query).
-    for mod in (tier3_dgp, tier4_bayes, t5, vm_pipeline):
-        mod.ATTRIBUTE_NAMES = AWA2_NAMES
-    for mod in (tier4_bayes, t5, vm_pipeline):
-        mod.ATTR_TO_IDX = attr_to_idx
-    for mod in (tier4_bayes, t5):
-        mod.N_ATTR = N_ATTRS
-
-    # 2. Train-split providers (tier1_GDE's CelebA loaders → AwA2 split tensors). Both
-    #    modules imported these by-reference; rebind on every namespace that holds them.
-    def _train_feats():
-        return awa2_data.load_image_features("train")
-
-    def _train_attrs():
-        return awa2_data.load_attributes("train")
-
-    for mod in (tier1_GDE, tier4_bayes, t5):
-        mod._load_train_features = _train_feats
-        mod._load_train_attributes = _train_attrs
-
-    # 3. Cache dir → artifacts/awa2/ so AwA2 probes/temperatures never clobber the CelebA
-    #    caches (both modules write tier4_probe.pt / tier5_temperatures.pt by that helper).
-    tier4_bayes._get_artifacts_dir = _get_artifacts_dir
-    t5._get_artifacts_dir = _get_artifacts_dir
-
-    # 4. Test-feature loader + test-attr diagnostic path (tier4 reads celeba_attributes_test.pt).
-    tier4_bayes.load_image_features = lambda: awa2_data.load_image_features("test")
-
-    def _awa2_probe_diag(P_test):
-        attrs = awa2_data.load_attributes("test")
-        acc = ((P_test.cpu() > 0.5).float() == attrs.float()).float().mean(0)
-        worst = int(acc.argmin())
-        tier4_bayes.log(f"  probe test acc: mean {acc.mean():.4f}  "
-                        f"min {acc[worst]:.4f} ({AWA2_NAMES[worst]})")
-
-    tier4_bayes.probe_accuracy_diagnostic = _awa2_probe_diag
+from awa2.adapter import configure_tier5 as configure_awa2
+from awa2.data_loader import _get_artifacts_dir
 
 
 def _awa2_gt():
