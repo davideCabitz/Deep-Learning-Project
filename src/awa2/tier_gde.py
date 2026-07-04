@@ -119,8 +119,8 @@ def _load_awa2_gt():
 
 
 def evaluate_gde(use_gde=True, ks=(1, 5, 10), save=True):
-    # Full AwA2 benchmark; CSV + parity-gated per-source NPZ (GDE arm only — LDE is an
-    # ablation row, not a comparison model).
+    # Full AwA2 benchmark; CSV + parity-gated per-source NPZ for BOTH arms (LDE turned out
+    # to be AwA2's best method, so it enters the statistical suite as a model, not an ablation).
     tag = "gde" if use_gde else "lde"
     image_features = load_image_features("test")
     mu, directions = load_or_mine_directions()
@@ -136,18 +136,17 @@ def evaluate_gde(use_gde=True, ks=(1, 5, 10), save=True):
     if save:
         csv_path = output_subdir("awa2") / f"tier_gde_{tag}.csv"
         save_results_csv(results, csv_path, ks=ks)
-        if use_gde:
-            _dump_per_source(make, gt_list, csv_path)
+        _dump_per_source(make, gt_list, csv_path, tag)
     return results
 
 
-def _dump_per_source(make, gt_list, csv_path):
+def _dump_per_source(make, gt_list, csv_path, tag):
     from per_source import check_parity_with_csv, dump_all, save_per_source_npz
     dump = dump_all(gt_list, make)
     check_parity_with_csv(dump, csv_path)
     ps_dir = output_subdir("awa2") / "per_source"
     ps_dir.mkdir(exist_ok=True)
-    save_per_source_npz("awa2_tier_gde", dump, ps_dir / "awa2_tier_gde.npz")
+    save_per_source_npz(f"awa2_tier_{tag}", dump, ps_dir / f"awa2_tier_{tag}.npz")
 
 
 if __name__ == "__main__":

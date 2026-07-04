@@ -14,6 +14,10 @@ Run (after the three tier runners have produced their NPZs):
 import sys
 from pathlib import Path
 
+# Force UTF-8 stdout so the Δ/− glyphs print on a Windows cp1252 console too.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from per_source import load_per_source
@@ -21,23 +25,35 @@ from results_saver import output_subdir
 from stats_eval import (holm_bonferroni, metric_label, paired_bootstrap_diff,
                         stratified_bootstrap)
 
+# All AwA2 comparison models. Champion = LDE (the AwA2 winner); every other model is a
+# reference arm in the paired tests.
 MODELS = {
+    "LDE": "awa2_tier_lde.npz",
+    "GDE": "awa2_tier_gde.npz",
     "CLIP baseline": "awa2_tier0_baseline.npz",
+    "DGP tau100": "awa2_tier2d_tau100.0_a1.0_center.npz",
+    "DualScore": "awa2_tier3_dualscore_seed0.npz",
     "CLAY": "awa2_tier_clay.npz",
     "Bprime_listnet": "awa2_tier5_bprime_listnet.npz",
 }
-CHAMPION = "Bprime_listnet"
+CHAMPION = "LDE"
 
 
 def _load_dumps():
+    # Missing dumps are skipped with a warning (e.g. a VM-trained model's NPZ not yet
+    # pulled) so the comparison over the available arms still runs. The champion is
+    # mandatory — without it there is nothing to test against.
     ps_dir = output_subdir("awa2") / "per_source"
     dumps = {}
     for name, fname in MODELS.items():
         path = ps_dir / fname
         if not path.exists():
-            raise FileNotFoundError(f"Missing per-source dump for {name}: {path}\n"
-                                    f"Run the corresponding tier runner first.")
+            print(f"[!] Skipping {name}: missing {path}")
+            continue
         dumps[name] = load_per_source(path)
+    if CHAMPION not in dumps:
+        raise FileNotFoundError(f"Champion dump missing: {MODELS[CHAMPION]} — "
+                                f"run src/awa2/tier_gde.py first.")
     return dumps
 
 
@@ -56,7 +72,7 @@ def main():
 
     # Paired significance: champion vs each reference; Holm across the whole family.
     pvals, diffs = {}, {}
-    for ref in (n for n in MODELS if n != CHAMPION):
+    for ref in (n for n in dumps if n != CHAMPION):
         d = paired_bootstrap_diff(dumps[CHAMPION], dumps[ref])
         diffs[ref] = d
         for field, res in d.items():
