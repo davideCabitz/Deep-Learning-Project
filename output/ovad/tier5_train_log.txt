@@ -1,0 +1,201 @@
+[10:54:13] Device: cuda
+[10:54:13] Training attribute probes (Stage 0)...
+[10:54:14]   probe epoch 01/10  BCE=0.6949
+[10:54:14]   probe epoch 02/10  BCE=0.6644
+[10:54:14]   probe epoch 03/10  BCE=0.6352
+[10:54:14]   probe epoch 04/10  BCE=0.6074
+[10:54:14]   probe epoch 05/10  BCE=0.5810
+[10:54:14]   probe epoch 06/10  BCE=0.5559
+[10:54:14]   probe epoch 07/10  BCE=0.5322
+[10:54:14]   probe epoch 08/10  BCE=0.5099
+[10:54:14]   probe epoch 09/10  BCE=0.4889
+[10:54:14]   probe epoch 10/10  BCE=0.4691
+[10:54:14]   Saved: /home/disi/Deep-Learning-Project/artifacts/ovad/tier4_probe.pt
+[10:54:14]   probe test acc (masked): mean 0.9229  min 0.5520 (position:vertical/upright/standing)
+[10:54:14] Fitting per-attribute temperatures (C1)...
+[10:54:14]   per-attribute  tau  ECE(before)  ECE(after):
+[10:54:14]     cleanliness:clean/neat  0.552  0.1523  0.1809
+[10:54:14]     cleanliness:unclean/dirt/dirty/muddy  0.227  0.2843  0.0039
+[10:54:14]     clothes color:black     0.339  0.2148  0.0093
+[10:54:14]     clothes color:blue      0.257  0.2646  0.0085
+[10:54:14]     clothes color:brown     0.158  0.3112  0.0008
+[10:54:14]     clothes color:gray      0.239  0.2773  0.0151
+[10:54:14]     clothes color:green     0.160  0.3174  0.0015
+[10:54:14]     clothes color:orange    0.126  0.3272  0.0006
+[10:54:14]     clothes color:pink      0.140  0.3273  0.0019
+[10:54:14]     clothes color:red       0.202  0.2985  0.0117
+[10:54:14]     clothes color:tan       0.147  0.3273  0.0017
+[10:54:14]     clothes color:violet    0.123  0.3235  0.0006
+[10:54:14]     clothes color:white     0.295  0.2376  0.0213
+[10:54:14]     clothes color:yellow    0.128  0.3259  0.0008
+[10:54:14]     clothes pattern:dotted/speckled/spotted  0.139  0.3171  0.0011
+[10:54:14]     clothes pattern:floral  0.148  0.3197  0.0023
+[10:54:14]     clothes pattern:lettered  0.175  0.3097  0.0027
+[10:54:14]     clothes pattern:plaid/tartan/checkered  0.141  0.3164  0.0009
+[10:54:14]     clothes pattern:plain   0.364  0.1865  0.0638
+[10:54:14]     clothes pattern:striped/lined/pinstriped  0.173  0.3084  0.0036
+[10:54:14]     clothes pattern:tiled   0.064  0.3370  0.0002
+[10:54:14]     color quantity:multicolored/colorful  0.267  0.2535  0.0191
+[10:54:14]     color quantity:single-colored/unicolored  0.568  0.1738  0.1602
+[10:54:14]     color quantity:two-colored  0.487  0.1314  0.0129
+[10:54:14]     color:black             0.481  0.1363  0.0351
+[10:54:14]     color:blue              0.245  0.2758  0.0117
+[10:54:14]     color:brown             0.355  0.2061  0.0030
+[10:54:14]     color:gray              0.330  0.2201  0.0052
+[10:54:14]     color:green             0.272  0.2585  0.0166
+[10:54:14]     color:orange            0.231  0.2828  0.0133
+[10:54:14]     color:pink              0.163  0.3082  0.0005
+[10:54:14]     color:red               0.300  0.2418  0.0094
+[10:54:14]     color:tan               0.273  0.2603  0.0180
+[10:54:14]     color:violet            0.115  0.3265  0.0009
+[10:54:14]     color:white             0.570  0.1151  0.0669
+[10:54:14]     color:yellow            0.240  0.2776  0.0063
+[10:54:14]     cooked:cooked/baked/warmed  0.240  0.2796  0.0185
+[10:54:14]     cooked:raw/fresh        0.215  0.2949  0.0219
+[10:54:14]     face expression:angry/mad  0.064  0.3378  0.0002
+[10:54:14]     face expression:disgust/frowning  0.082  0.3341  0.0002
+[10:54:14]     face expression:fear/surprise  0.122  0.3260  0.0006
+[10:54:14]     face expression:happy/smiling/laughing/grinning/joyful  0.215  0.2871  0.0103
+[10:54:14]     face expression:neutral/calm/serious  0.297  0.2346  0.0312
+[10:54:14]     face expression:sad/unhappy  0.094  0.3199  0.0001
+[10:54:14]     face expression:sleepy/sleeping  0.067  0.3313  0.0002
+[10:54:14]     gender:female/woman/girl  0.274  0.2529  0.0263
+[10:54:14]     gender:male/man/guy/boy  0.337  0.2010  0.0528
+[10:54:14]     group:group/bunch/collection  0.228  0.2829  0.0027
+[10:54:14]     group:single/one/individual/sole  0.225  0.2842  0.0050
+[10:54:14]     hair color:black        0.327  0.2166  0.0230
+[10:54:14]     hair color:blue         0.103  0.3332  0.0000
+[10:54:14]     hair color:brown        0.225  0.2833  0.0026
+[10:54:14]     hair color:gray         0.148  0.3236  0.0010
+[10:54:14]     hair color:green        0.070  0.3251  0.0002
+[10:54:14]     hair color:orange       0.072  0.3221  0.0001
+[10:54:14]     hair color:pink         0.066  0.3304  0.0002
+[10:54:14]     hair color:red          0.091  0.3344  0.0005
+[10:54:14]     hair color:tan          0.172  0.3126  0.0033
+[10:54:14]     hair color:violet       0.068  0.3299  0.0002
+[10:54:14]     hair color:white        0.128  0.3330  0.0010
+[10:54:14]     hair color:yellow       0.144  0.3224  0.0011
+[10:54:14]     hair length:bald        0.117  0.3331  0.0010
+[10:54:14]     hair length:long        0.278  0.2514  0.0156
+[10:54:14]     hair length:short       0.323  0.2097  0.0488
+[10:54:14]     hair tone:dark          0.382  0.1826  0.0513
+[10:54:14]     hair tone:light/bright  0.247  0.2688  0.0089
+[10:54:14]     hair type:curly/curled  0.152  0.3217  0.0026
+[10:54:14]     hair type:straight      0.367  0.1750  0.0949
+[10:54:14]     length:long             0.300  0.2335  0.0397
+[10:54:14]     length:short            0.213  0.2921  0.0061
+[10:54:14]     material:asphalt/cement/clay/concrete/stucco  0.103  0.3301  0.0004
+[10:54:14]     material:ceramic/brick/porcelain  0.218  0.2905  0.0062
+[10:54:14]     material:glass          0.224  0.2903  0.0162
+[10:54:14]     material:leather        0.143  0.3210  0.0021
+[10:54:14]     material:metal/metallic/aluminum/brass/copper-zinc/iron/stainless steel/steel/silver  0.425  0.1642  0.0241
+[10:54:14]     material:paper/cardboard  0.175  0.3113  0.0022
+[10:54:14]     material:polymers/plastic/rubber/styrofoam/polymer  0.306  0.2360  0.0207
+[10:54:14]     material:stone/granite/cobblestone/gravel/marble/pebbled/rocky/sandy  0.118  0.3249  0.0003
+[10:54:14]     material:textile/cloth/fabric/denim/cotton/jean/silk/plush  0.273  0.2547  0.0153
+[10:54:14]     material:wood/wooden/bamboo/hardwood  0.269  0.2603  0.0048
+[10:54:14]     maturity:adult/old/aged  0.428  0.2794  0.2251
+[10:54:14]     maturity:young/baby     0.221  0.2850  0.0100
+[10:54:14]     optical property:opaque  0.420  0.2589  0.2435
+[10:54:14]     optical property:reflective  0.209  0.2967  0.0105
+[10:54:14]     optical property:transparent/translucent  0.222  0.2896  0.0154
+[10:54:14]     order:messy/disordered/unordered/disorganized/unorganized/cluttered/untidy  0.254  0.2638  0.0152
+[10:54:14]     order:ordered/arranged/organized/tidy  0.307  0.2266  0.0480
+[10:54:14]     pattern:dotted/speckled/spotted  0.174  0.3108  0.0021
+[10:54:14]     pattern:floral          0.143  0.3193  0.0011
+[10:54:14]     pattern:lettered        0.216  0.2845  0.0049
+[10:54:14]     pattern:plaid/tartan/checkered  0.149  0.3124  0.0012
+[10:54:14]     pattern:plain           0.605  0.2273  0.2111
+[10:54:14]     pattern:striped/lined/pinstriped  0.211  0.2892  0.0121
+[10:54:14]     pattern:tiled           0.099  0.3407  0.0020
+[10:54:14]     position:horizontal/lying  0.498  0.1308  0.0503
+[10:54:14]     position:sitting/sit    0.292  0.2421  0.0197
+[10:54:14]     position:vertical/upright/standing  0.739  0.1426  0.1471
+[10:54:14]     size:big/large/giant/huge  0.435  0.1558  0.1082
+[10:54:14]     size:small/little/tiny  0.419  0.1525  0.0588
+[10:54:14]     state:closed            0.259  0.2678  0.0209
+[10:54:14]     state:covered           0.172  0.3104  0.0012
+[10:54:14]     state:cracked           0.073  0.3231  0.0001
+[10:54:14]     state:dilapidated/ruined/broken  0.108  0.3240  0.0000
+[10:54:14]     state:dry               0.334  0.2338  0.1242
+[10:54:14]     state:empty             0.265  0.2619  0.0147
+[10:54:14]     state:folded/bend       0.091  0.3417  0.0006
+[10:54:14]     state:full/whole        0.369  0.1915  0.0434
+[10:54:14]     state:off               0.148  0.3266  0.0016
+[10:54:14]     state:on                0.217  0.2869  0.0044
+[10:54:14]     state:open              0.185  0.3037  0.0042
+[10:54:14]     state:piece/cut         0.254  0.2683  0.0166
+[10:54:14]     state:wet               0.136  0.3220  0.0004
+[10:54:14]     texture:rough           0.220  0.2904  0.0139
+[10:54:14]     texture:smooth/sleek    0.158  0.2806  0.1627
+[10:54:14]     texture:soft/fluffy/furry/hairy  0.407  0.1726  0.0620
+[10:54:14]     tone:dark               0.497  0.1301  0.0112
+[10:54:14]     tone:light/bright       0.463  0.2328  0.2154
+[10:54:14]   mean ECE 0.2719 -> 0.0270
+[10:54:14]   Saved: /home/disi/Deep-Learning-Project/artifacts/ovad/tier5_temperatures.pt
+[10:54:14] Stage B' — BayesPhi + ListNet (Bprime_listnet, seed 0)
+[10:54:15] B' [listnet seed=0]: 1,149,792 params, 40 epochs x 3 steps x 64 queries
+[10:54:24]   epoch 01/40  listnet=4.4867  kappa=1.000  eta=6.0min
+[10:54:33]   epoch 02/40  listnet=4.1655  kappa=0.999  eta=6.0min
+[10:54:42]   epoch 03/40  listnet=4.1888  kappa=0.999  eta=5.7min
+[10:54:52]   epoch 04/40  listnet=4.1497  kappa=0.999  eta=5.6min
+[10:55:02]   epoch 05/40  listnet=3.7547  kappa=0.999  eta=5.5min
+[10:55:13]   epoch 06/40  listnet=3.9806  kappa=0.998  eta=5.5min
+[10:55:22]   epoch 07/40  listnet=3.9226  kappa=0.998  eta=5.3min
+[10:55:31]   epoch 08/40  listnet=3.9503  kappa=0.998  eta=5.1min
+[10:55:41]   epoch 09/40  listnet=3.8440  kappa=0.997  eta=5.0min
+[10:55:50]   epoch 10/40  listnet=3.8536  kappa=0.997  eta=4.8min
+[10:56:00]   epoch 11/40  listnet=3.7944  kappa=0.997  eta=4.6min
+[10:56:11]   epoch 12/40  listnet=3.8113  kappa=0.997  eta=4.5min
+[10:56:21]   epoch 13/40  listnet=3.5557  kappa=0.996  eta=4.4min
+[10:56:31]   epoch 14/40  listnet=3.7108  kappa=0.996  eta=4.2min
+[10:56:40]   epoch 15/40  listnet=3.7104  kappa=0.996  eta=4.0min
+[10:56:49]   epoch 16/40  listnet=3.7142  kappa=0.996  eta=3.9min
+[10:57:00]   epoch 17/40  listnet=3.5609  kappa=0.996  eta=3.7min
+[10:57:09]   epoch 18/40  listnet=3.7801  kappa=0.996  eta=3.6min
+[10:57:18]   epoch 19/40  listnet=3.4606  kappa=0.995  eta=3.4min
+[10:57:27]   epoch 20/40  listnet=3.5262  kappa=0.995  eta=3.2min
+[10:57:37]   epoch 21/40  listnet=3.6084  kappa=0.995  eta=3.1min
+[10:57:47]   epoch 22/40  listnet=3.5670  kappa=0.995  eta=2.9min
+[10:57:57]   epoch 23/40  listnet=3.7776  kappa=0.995  eta=2.7min
+[10:58:07]   epoch 24/40  listnet=3.4842  kappa=0.995  eta=2.6min
+[10:58:16]   epoch 25/40  listnet=3.5747  kappa=0.995  eta=2.4min
+[10:58:26]   epoch 26/40  listnet=3.5686  kappa=0.995  eta=2.3min
+[10:58:36]   epoch 27/40  listnet=3.5413  kappa=0.995  eta=2.1min
+[10:58:45]   epoch 28/40  listnet=3.5166  kappa=0.995  eta=1.9min
+[10:58:55]   epoch 29/40  listnet=3.5994  kappa=0.995  eta=1.8min
+[10:59:05]   epoch 30/40  listnet=3.5411  kappa=0.995  eta=1.6min
+[10:59:15]   epoch 31/40  listnet=3.5228  kappa=0.995  eta=1.5min
+[10:59:25]   epoch 32/40  listnet=3.5630  kappa=0.995  eta=1.3min
+[10:59:35]   epoch 33/40  listnet=3.5120  kappa=0.995  eta=1.1min
+[10:59:44]   epoch 34/40  listnet=3.6294  kappa=0.995  eta=1.0min
+[10:59:53]   epoch 35/40  listnet=3.5967  kappa=0.995  eta=0.8min
+[11:00:02]   epoch 36/40  listnet=3.4733  kappa=0.995  eta=0.6min
+[11:00:12]   epoch 37/40  listnet=3.6287  kappa=0.995  eta=0.5min
+[11:00:21]   epoch 38/40  listnet=3.6919  kappa=0.995  eta=0.3min
+[11:00:31]   epoch 39/40  listnet=3.5254  kappa=0.995  eta=0.2min
+[11:00:41]   epoch 40/40  listnet=3.6036  kappa=0.995  eta=0.0min
+[11:00:41]   [Bprime_listnet] 01/12  +clothes_color:blue                             R@5=0.0000  (0s)
+[11:00:42]   [Bprime_listnet] 02/12  -clothes_color:black                            R@5=0.6623  (0s)
+[11:00:42]   [Bprime_listnet] 03/12  +material:wood/wooden/bamboo/hardwood           R@5=0.0000  (1s)
+[11:00:42]   [Bprime_listnet] 04/12  +pattern:striped/lined/pinstriped               R@5=0.1738  (1s)
+[11:00:42]   [Bprime_listnet] 05/12  +state:closed                                   R@5=0.0000  (1s)
+[11:00:42]   [Bprime_listnet] 06/12  +face_expression:happy/smiling/laughing/grinning/joyful  R@5=0.1557  (1s)
+[11:00:42]   [Bprime_listnet] 07/12  -cleanliness:unclean/dirt/dirty/muddy           R@5=0.1111  (1s)
+[11:00:42]   [Bprime_listnet] 08/12  +size:big/large/giant/huge                      R@5=0.0000  (1s)
+[11:00:43]   [Bprime_listnet] 09/12  -clothes_color:black & +face_expression:happy/smiling/laughing/grinning/joyful  R@5=0.0000  (1s)
+[11:00:43]   [Bprime_listnet] 10/12  +state:closed & -cleanliness:unclean/dirt/dirty/muddy  R@5=0.0000  (1s)
+[11:00:43]   [Bprime_listnet] 11/12  +material:wood/wooden/bamboo/hardwood & -cleanliness:unclean/dirt/dirty/muddy  R@5=0.0000  (1s)
+[11:00:43]   [Bprime_listnet] 12/12  +clothes_color:blue & -clothes_color:black & +face_expression:happy/smiling/laughing/grinning/joyful  R@5=0.0000  (2s)
+[11:00:43]   [Bprime_listnet(dump)] 01/12  +clothes_color:blue                             R@5=0.0000  (0s)
+[11:00:43]   [Bprime_listnet(dump)] 02/12  -clothes_color:black                            R@5=0.6623  (0s)
+[11:00:43]   [Bprime_listnet(dump)] 03/12  +material:wood/wooden/bamboo/hardwood           R@5=0.0000  (1s)
+[11:00:44]   [Bprime_listnet(dump)] 04/12  +pattern:striped/lined/pinstriped               R@5=0.1738  (1s)
+[11:00:44]   [Bprime_listnet(dump)] 05/12  +state:closed                                   R@5=0.0000  (1s)
+[11:00:44]   [Bprime_listnet(dump)] 06/12  +face_expression:happy/smiling/laughing/grinning/joyful  R@5=0.1557  (1s)
+[11:00:44]   [Bprime_listnet(dump)] 07/12  -cleanliness:unclean/dirt/dirty/muddy           R@5=0.1111  (1s)
+[11:00:44]   [Bprime_listnet(dump)] 08/12  +size:big/large/giant/huge                      R@5=0.0000  (1s)
+[11:00:44]   [Bprime_listnet(dump)] 09/12  -clothes_color:black & +face_expression:happy/smiling/laughing/grinning/joyful  R@5=0.0000  (1s)
+[11:00:44]   [Bprime_listnet(dump)] 10/12  +state:closed & -cleanliness:unclean/dirt/dirty/muddy  R@5=0.0000  (1s)
+[11:00:44]   [Bprime_listnet(dump)] 11/12  +material:wood/wooden/bamboo/hardwood & -cleanliness:unclean/dirt/dirty/muddy  R@5=0.0000  (1s)
+[11:00:44]   [Bprime_listnet(dump)] 12/12  +clothes_color:blue & -clothes_color:black & +face_expression:happy/smiling/laughing/grinning/joyful  R@5=0.0000  (2s)
