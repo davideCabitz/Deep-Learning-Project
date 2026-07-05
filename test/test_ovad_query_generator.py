@@ -16,6 +16,9 @@ import pytest
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Baselines"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Trained"))
 
 from ovad.adapter import OVAD_ATTR_TO_IDX, _make_tristate_query_generator
 from ovad.generate_gt import HAMMING_RATE, _masked_hamming_rate_batch
@@ -23,12 +26,12 @@ from ovad.generate_gt import HAMMING_RATE, _masked_hamming_rate_batch
 
 @pytest.fixture(scope="module")
 def sampler():
-    import tier3_dgp
+    import phi_gate
     TSQG = _make_tristate_query_generator()
     torch.manual_seed(0)
     # 400 instances × 6 attrs, tri-state, positively-biased so queries find targets.
     A = torch.randint(0, 3, (400, 6), dtype=torch.int8) - 1
-    cfg = tier3_dgp.PhiConfig(seed=0)
+    cfg = phi_gate.PhiConfig(seed=0)
     return TSQG(A, cfg), A
 
 

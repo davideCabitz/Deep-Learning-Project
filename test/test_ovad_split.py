@@ -16,6 +16,9 @@ import pytest
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Baselines"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Trained"))
 
 from ovad import data_loader as dl
 

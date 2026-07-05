@@ -1,14 +1,14 @@
 """
 AwA2 Tier-0 — CLIP zero-shot baseline (transfer study lower bound).
 
-The CelebA champion Tier-0 config (src/tier0_enhanced.py "all_fixes"): prompt-bank
+The CelebA champion Tier-0 config (src/clip_enhanced.py "all_fixes"): prompt-bank
 ensembling (FIX 3), modality-gap centering (FIX 1), unit-delta normalization (FIX 2).
   t̂(a) = normalize( normalize(meanₖ bank[a,k]) − μ_txt )
   d     = normalize( Σ t̂⁺ − Σ t̂⁻ )
   q     = normalize( (v_ref − μ_img) + α·d + μ_img ),  cosine-scored vs the corpus.
 
 Raw latent arithmetic in corrected CLIP geometry — no SVD, no learning. The floor CLAY
-and the fusion model must beat on AwA2. The scoring core mirrors tier0_enhanced.score();
+and the fusion model must beat on AwA2. The scoring core mirrors clip_enhanced.score();
 it is re-expressed here (≈15 lines) against AwA2 loaders/indices rather than importing
 the CelebA module, whose scorer binds CelebA's ATTR_TO_IDX and fixed artifact paths.
 
@@ -23,6 +23,9 @@ from pathlib import Path
 import torch
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Baselines"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Trained"))
 
 from eval import (evaluate_all, find_eval_json, format_results_table,
                   load_eval_json, parse_query)
@@ -53,7 +56,7 @@ def build_attr_directions():
 
 
 def score(T_pos, T_neg, v_ref_idx, image_features, attr_directions, mu_img, alpha=1.0):
-    # Tier-0 enhanced scorer in AwA2 index space (mirrors tier0_enhanced.score, all fixes on).
+    # Tier-0 enhanced scorer in AwA2 index space (mirrors clip_enhanced.score, all fixes on).
     v_ref = image_features[v_ref_idx].clone()
     delta = torch.zeros_like(v_ref)
     for name in T_pos:

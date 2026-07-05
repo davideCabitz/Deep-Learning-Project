@@ -21,6 +21,9 @@ from pathlib import Path
 import torch
 
 sys.path.insert(0, str(Path(__file__).parents[1]))  # src/ on path for peer imports
+sys.path.insert(0, str(Path(__file__).parents[1] / "Baselines"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Trained"))
 
 
 SPLIT_SEED = 42

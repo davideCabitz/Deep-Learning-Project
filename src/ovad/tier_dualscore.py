@@ -21,6 +21,9 @@ from pathlib import Path
 import torch
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Baselines"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Trained"))
 
 from ovad import data_loader as ovad_data
 from ovad.adapter import configure_dualscore

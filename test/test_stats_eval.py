@@ -14,6 +14,9 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Baselines"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Trained"))
 
 from stats_eval import (category_breakdown, holm_bonferroni, macro_vs_micro,
                         paired_bootstrap_diff, query_category, recall_curve,

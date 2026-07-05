@@ -15,6 +15,9 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Baselines"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Trained"))
 
 from eval import evaluate_query
 from per_source import (check_parity_with_csv, dump_all, load_per_source,

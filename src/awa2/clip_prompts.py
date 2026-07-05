@@ -23,6 +23,9 @@ import torch
 from transformers import AutoTokenizer, CLIPModel
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Baselines"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Trained"))
 
 from awa2.clip_features import CLIP_MODEL_NAME, FEATURE_DIM, _pick_device
 from awa2.data_loader import ATTRIBUTE_NAMES, _get_artifacts_dir

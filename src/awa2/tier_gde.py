@@ -27,6 +27,9 @@ import torch
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Baselines"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Trained"))
 
 from eval import (evaluate_all, find_eval_json, format_results_table,
                   load_eval_json, parse_query)
