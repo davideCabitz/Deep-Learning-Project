@@ -95,9 +95,9 @@ def test_generated_json_is_eval_compatible_and_exact():
     assert len(gt) >= 1
     from ovad.data_loader import load_attributes
     try:
-        attrs = load_attributes()
+        attrs = load_attributes("test")                 # benchmark corpus = TEST split
     except FileNotFoundError:
-        attrs = None                                    # instance index not built here
+        attrs = None                                    # index/split not built here
     for entry in gt:
         assert set(entry.keys()) == {"query", "ground_truth"}
         pos, neg = parse_query(entry["query"])          # must parse without error
@@ -106,6 +106,9 @@ def test_generated_json_is_eval_compatible_and_exact():
             assert int(src) >= 0
             assert len(targets) >= gg.MIN_TARGETS
             assert int(src) not in targets              # disjoint pools -> never a target
+            if attrs is not None:                       # split-local index space
+                assert int(src) < attrs.shape[0]
+                assert all(t < attrs.shape[0] for t in targets)
         if attrs is not None:
             # Exactness: the frozen entry IS the full uncapped ground truth.
             assert entry["ground_truth"] == gg.build_ground_truth(entry["query"], attrs)
