@@ -25,10 +25,18 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
+from eval import parse_query
 from ovad import data_loader as ovad_data
-from ovad.adapter import configure_tier_dgp
+from ovad.adapter import configure_tier_dgp, normalize_attribute_name
 
 OVAD_EVAL_JSON = "ovad_evaluation.json"
+
+
+def _normalize_query_string(query_str: str) -> str:
+    pos, neg = parse_query(query_str)
+    parts = [f"+ {normalize_attribute_name(name)}" for name in pos]
+    parts.extend(f"- {normalize_attribute_name(name)}" for name in neg)
+    return ", ".join(parts)
 
 
 def main() -> None:
@@ -43,7 +51,8 @@ def main() -> None:
 
     # Imported AFTER configure_tier_dgp so module-level tables see OVAD bindings.
     import tier2d_dgp as dgp
-    from eval import evaluate_all, find_eval_json, format_results_table, load_eval_json
+    from eval import (evaluate_all, find_eval_json, format_results_table,
+                      load_eval_json, parse_query)
     from manifold import intrinsic_mean
     from results_saver import output_subdir, save_results_csv
     from ovad.clip_prompts import load_prompt_bank
@@ -56,7 +65,8 @@ def main() -> None:
     gt_list = load_eval_json(find_eval_json().parent / OVAD_EVAL_JSON)
 
     def make(query_str):
-        return dgp.make_get_ranking(query_str, image_features, mu, prompt_bank, mu_txt, cfg)
+        normalized_query = _normalize_query_string(query_str)
+        return dgp.make_get_ranking(normalized_query, image_features, mu, prompt_bank, mu_txt, cfg)
 
     results = evaluate_all(gt_list, make)
     print(f"\nOVAD tier-2d DGP ({cfg.tag()}) - {len(gt_list)} queries\n")

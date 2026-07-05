@@ -50,11 +50,20 @@ OVAD_ATTR_TO_IDX_DUAL = {**OVAD_ATTR_TO_IDX,
 IS_HAS_BY_NAME = {m["name"]: m["is_has_att"] for m in load_attribute_meta()}
 
 
+def normalize_attribute_name(name: str) -> str:
+    # Accept query-normalized names from eval/parsing and resolve them to the raw
+    # OVAD name expected by the prompt bank and attribute metadata.
+    return name if name in IS_HAS_BY_NAME else name.replace('_', ' ')
+
+
 def _single_arg_prompt_builder():
     from ovad.clip_prompts import build_prompts_for_attribute as ovad_prompts
 
     def _wrapped(name: str) -> list[str]:
-        return ovad_prompts(name, IS_HAS_BY_NAME[name])
+        # Accept both raw and query-normalized (underscored) names — prompt text must
+        # always be built from the RAW name.
+        raw = normalize_attribute_name(name)
+        return ovad_prompts(raw, IS_HAS_BY_NAME[raw])
 
     return _wrapped
 
@@ -64,7 +73,7 @@ def configure_tier_dgp() -> None:
     import tier1_GDE
     import tier2d_dgp
 
-    tier2d_dgp.ATTR_TO_IDX = OVAD_ATTR_TO_IDX
+    tier2d_dgp.ATTR_TO_IDX = OVAD_ATTR_TO_IDX_DUAL
     tier2d_dgp.build_prompts_for_attribute = _single_arg_prompt_builder()
     tier1_GDE._get_artifacts_dir = _get_artifacts_dir
 
@@ -329,6 +338,10 @@ def configure_dualscore() -> None:
     _bind_tables(tier1_GDE, tier2d_dgp, tier3_dgp, tier3_hybrid)
     _bind_train_loaders(tier1_GDE, tier3_hybrid)
     tier1_GDE._get_artifacts_dir = _get_artifacts_dir  # visual_directions cache → artifacts/ovad/
+    # tier2d_dgp must get the RAW-only map: compute_mu_txt iterates ATTR_TO_IDX itself,
+    # so the dual map would double-count every attribute (and feed underscored names to
+    # the prompt builder). Nothing calls tier2d_dgp with underscored names.
+    tier2d_dgp.ATTR_TO_IDX = OVAD_ATTR_TO_IDX
     tier2d_dgp.build_prompts_for_attribute = _single_arg_prompt_builder()
     # Rebind on every module holding a by-value copy (their imports already ran above).
     qg = _make_tristate_query_generator()

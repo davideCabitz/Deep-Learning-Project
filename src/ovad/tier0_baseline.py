@@ -22,7 +22,8 @@ sys.path.insert(0, str(Path(__file__).parents[1]))
 from eval import (evaluate_all, find_eval_json, format_results_table,
                   load_eval_json, parse_query)
 from results_saver import output_subdir, save_results_csv
-from ovad.data_loader import ATTR_TO_IDX, _get_artifacts_dir, load_image_features
+from ovad.adapter import OVAD_ATTR_TO_IDX_DUAL as ATTR_TO_IDX
+from ovad.data_loader import _get_artifacts_dir, load_image_features
 
 OVAD_EVAL_JSON = "ovad_evaluation.json"
 

@@ -23,7 +23,7 @@ from eval import (evaluate_all, find_eval_json, format_results_table,
                   load_eval_json, parse_query)
 from results_saver import output_subdir, save_results_csv
 from tier1_CLAY import _build_subspace, _project_db  # shared manifold math (DRY)
-from ovad.adapter import IS_HAS_BY_NAME
+from ovad.adapter import IS_HAS_BY_NAME, normalize_attribute_name, OVAD_ATTR_TO_IDX_DUAL
 from ovad.clip_prompts import build_prompts_for_attribute
 from ovad.data_loader import ATTRIBUTE_NAMES, _get_artifacts_dir, load_image_features
 
@@ -39,7 +39,8 @@ def _load_prompt_bank():
 
 
 def _true_prompt_count(name: str) -> int:
-    return len(build_prompts_for_attribute(name, IS_HAS_BY_NAME[name]))
+    raw_name = normalize_attribute_name(name)
+    return len(build_prompts_for_attribute(raw_name, IS_HAS_BY_NAME[raw_name]))
 
 
 def _stack_condition_prompts(T_pos, T_neg, prompt_bank):
@@ -47,7 +48,7 @@ def _stack_condition_prompts(T_pos, T_neg, prompt_bank):
     # T_c [m, d], stripping per-attribute padding via OVAD's true prompt counts.
     rows = []
     for name in T_pos + T_neg:
-        j = ATTRIBUTE_NAMES.index(name)
+        j = OVAD_ATTR_TO_IDX_DUAL[name]
         n_j = _true_prompt_count(name)
         rows.append(prompt_bank[j, :n_j])
     return torch.cat(rows, dim=0)
