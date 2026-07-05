@@ -4,6 +4,9 @@ import sys
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src' / 'Baselines'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src' / 'Training-Free'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src' / 'Trained'))
 
 from ovad import tier_clay, tier_dgp as ovad_tier_dgp
 from ovad.adapter import configure_tier_dgp
@@ -31,11 +34,11 @@ def test_clay_stack_accepts_query_normalized_attribute_names(monkeypatch):
 
 
 def test_dgp_adapter_binds_dual_attribute_index():
-    import tier2d_dgp
+    import dgp
 
     configure_tier_dgp()
 
-    assert tier2d_dgp.ATTR_TO_IDX['clothes color:blue'] == tier2d_dgp.ATTR_TO_IDX['clothes_color:blue']
+    assert dgp.ATTR_TO_IDX['clothes color:blue'] == dgp.ATTR_TO_IDX['clothes_color:blue']
 
 
 def test_dgp_runner_normalizes_query_strings():

@@ -20,6 +20,9 @@ from pathlib import Path
 import torch
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent / "Baselines"))
+sys.path.insert(0, str(Path(__file__).parent / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).parent / "Trained"))
 
 from eval import evaluate_all, find_eval_json, format_results_table, load_eval_json
 from per_source import check_parity_with_csv, dump_all, save_per_source_npz
@@ -41,14 +44,14 @@ def load_custom_gt() -> list[dict]:
 
 def _make_clip():
     # CLIP (§4.1) — vanilla latent arithmetic, α=1 (published baseline config).
-    from tier0 import load_attribute_text_features, load_image_features, make_get_ranking
+    from clip_baseline import load_attribute_text_features, load_image_features, make_get_ranking
     feats, txt = load_image_features(), load_attribute_text_features()
     return lambda q: make_get_ranking(q, feats, txt, alpha=1.0)
 
 
 def _make_clip_enhanced():
     # CLIP Enhanced (§4.2) — all three geometric fixes on (published champion config).
-    from tier0_enhanced import build_attr_directions, load_image_features, make_get_ranking
+    from clip_enhanced import build_attr_directions, load_image_features, make_get_ranking
     feats = load_image_features()
     dirs, mu_img = build_attr_directions(use_prompt_bank=True, center=True)
     return lambda q: make_get_ranking(q, feats, dirs, mu_img,
@@ -59,7 +62,7 @@ def _make_clay():
     # CLAY (§4.3) — faithful reproduction, k=50 + rotation (published config).
     from clip_features import load_image_features
     from clip_prompts import load_prompt_bank
-    from tier1_CLAY import make_get_ranking
+    from clay import make_get_ranking
     feats, bank = load_image_features(), load_prompt_bank()
     return lambda q: make_get_ranking(q, feats, bank, k=50, use_rotation=True)
 
@@ -68,8 +71,8 @@ def _make_dgp():
     # DGP (§4.6) — uniform gate, centered (τ=100, α=1: the published tier-2d champion).
     from clip_features import load_image_features
     from clip_prompts import load_prompt_bank
-    from tier1_GDE import load_or_mine_directions
-    from tier2d_dgp import DGPConfig, compute_mu_txt, make_get_ranking
+    from gde import load_or_mine_directions
+    from dgp import DGPConfig, compute_mu_txt, make_get_ranking
     cfg = DGPConfig(tau=100.0, alpha=1.0)
     feats, bank = load_image_features(), load_prompt_bank()
     mu, _ = load_or_mine_directions()
@@ -89,13 +92,13 @@ def _run_abap(gt_list: list[dict], dev: torch.device) -> tuple[dict, dict]:
     # recipe on the custom benchmark: cached probe/τ/tree + saved ListNet-seed0 Φ over
     # the λ=0 A′ core (the exact base it was trained on). No tuning, no training.
     from clip_features import load_image_features
-    from tier5_cdbayes import (BayesPhi, StageAPrime, Tier5Config, calibrated_posteriors,
+    from cdbayes import (BayesPhi, StageAPrime, CDBayesConfig, calibrated_posteriors,
                                load_or_build_tree, load_or_fit_temperatures,
                                load_or_train_probes, make_stage_b_prime_chunk)
     from vm_pipeline import evaluate_scorer
 
-    cfg = Tier5Config()
-    ckpt = output_subdir("tier5_cdbayes") / "tier5_Bprime_listnet_seed0.pt"
+    cfg = CDBayesConfig()
+    ckpt = output_subdir("cdbayes") / "tier5_Bprime_listnet_seed0.pt"
     if not ckpt.exists():
         raise FileNotFoundError(f"{ckpt} not found — pull the tier-5 bundle from the VM.")
 

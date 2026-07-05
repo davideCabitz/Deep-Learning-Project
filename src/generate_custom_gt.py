@@ -42,6 +42,9 @@ from pathlib import Path
 import torch
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent / "Baselines"))
+sys.path.insert(0, str(Path(__file__).parent / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).parent / "Trained"))
 
 from data_loader import ATTRIBUTE_NAMES, load_attributes
 from eval import find_eval_json, load_eval_json

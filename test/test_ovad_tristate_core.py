@@ -17,9 +17,12 @@ import pytest
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Baselines"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "Trained"))
 
-import tier4_bayes
-import tier5_cdbayes as t5
+import bap
+import cdbayes as t5
 from ovad import adapter
 
 
@@ -124,14 +127,14 @@ def test_masked_probe_training_ignores_unlabeled(monkeypatch):
     labels[: n // 2, 0] = 1.0                                 # attr0: 1 or -1 only
     labels[:, 1] = (torch.rand(n) > 0.5).float()              # attr1: ordinary binary
 
-    monkeypatch.setattr(tier4_bayes, "FEATURE_DIM", d)
-    monkeypatch.setattr(tier4_bayes, "N_ATTR", 2)
-    monkeypatch.setattr(tier4_bayes, "_load_train_features", lambda: feats)
-    monkeypatch.setattr(tier4_bayes, "_load_train_attributes", lambda: labels)
+    monkeypatch.setattr(bap, "FEATURE_DIM", d)
+    monkeypatch.setattr(bap, "N_ATTR", 2)
+    monkeypatch.setattr(bap, "_load_train_features", lambda: feats)
+    monkeypatch.setattr(bap, "_load_train_attributes", lambda: labels)
 
     # Default probe_batch (8192) gives 1 Adam step/epoch on 256 samples — shrink the
     # batch and raise epochs so the linear probe actually converges in-test.
-    cfg = tier4_bayes.Tier4Config(probe_epochs=150, probe_batch=64)
+    cfg = bap.BAPConfig(probe_epochs=150, probe_batch=64)
     probe = adapter._masked_train_probes_linear(cfg, torch.device("cpu"))
     with torch.no_grad():
         p0 = torch.sigmoid(probe(feats)[:, 0]).mean()

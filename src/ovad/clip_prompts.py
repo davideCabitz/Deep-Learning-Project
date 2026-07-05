@@ -24,6 +24,9 @@ import torch
 from transformers import AutoTokenizer, CLIPModel
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Baselines"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Trained"))
 
 from ovad.data_loader import (ATTRIBUTE_NAMES, _get_artifacts_dir,
                               load_attribute_meta)

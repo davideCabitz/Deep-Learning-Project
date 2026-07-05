@@ -19,6 +19,9 @@ from torchvision import transforms
 from transformers import CLIPModel
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Baselines"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Trained"))
 
 from ovad.data_loader import _get_artifacts_dir, _get_ovad_root, load_instance_index
 

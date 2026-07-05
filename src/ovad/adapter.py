@@ -1,11 +1,11 @@
 """
 OVAD adapter — attribute-table rebinding + the is_has_att prompt-builder wrapper.
 
-tier1_CLAY.py needs only its pure manifold math (_build_subspace, _project_db), which
+clay.py needs only its pure manifold math (_build_subspace, _project_db), which
 src/ovad/tier_clay.py imports directly and pairs with a locally re-implemented prompt
 stacker — no rebinding needed there (mirrors src/awa2/tier_clay.py).
 
-tier2d_dgp.py is different: its DGP-specific functions (_attr_stack, compute_mu_txt)
+dgp.py is different: its DGP-specific functions (_attr_stack, compute_mu_txt)
 read the module-level ATTR_TO_IDX (CelebA's 40-name dict) and call the CelebA
 single-arg build_prompts_for_attribute(name) INTERNALLY, not just at the runner's call
 site. Forking _gated_directions_batch/_compose_batch to avoid this would duplicate the
@@ -13,15 +13,15 @@ real DGP math; instead configure_tier_dgp() rebinds those two names before
 src/ovad/tier_dgp.py imports the module, following the src/awa2/adapter.py pattern.
 
 One OVAD-specific wrinkle: build_prompts_for_attribute here needs BOTH the attribute
-name and its is_has_att field (src/ovad/clip_prompts.py), but tier2d_dgp calls it with
+name and its is_has_att field (src/ovad/clip_prompts.py), but dgp calls it with
 a single `name` argument — _single_arg_prompt_builder closes over the name->is_has_att
 lookup so the rebound function matches that call signature exactly.
 
 Trained tiers (DualScore, tier5) get three extra seams the training-free path doesn't need:
   - TriStateQueryGenerator: the synthetic-query sampler with OVAD's tri-state label
     semantics (never query an unlabeled reference attribute; positives by the masked
-    relative-Hamming RATE, the exact GT rule) — rebinds tier3_dgp.QueryGenerator.
-  - Dual-keyed ATTR_TO_IDX: tier3_dualscore/tier5 index attributes with RAW names during
+    relative-Hamming RATE, the exact GT rule) — rebinds phi_gate.QueryGenerator.
+  - Dual-keyed ATTR_TO_IDX: dual_score/tier5 index attributes with RAW names during
     training (from the QueryGenerator) but with parse_query's UNDERSCORED tokens at eval;
     OVAD names contain spaces, so the bound dict carries both key forms (never colliding).
   - Masked tri-state cores: the CelebA label-consuming functions (BCE probe trainers,
@@ -38,6 +38,9 @@ from pathlib import Path
 import torch
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Baselines"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Trained"))
 
 from ovad import data_loader as ovad_data
 from ovad.data_loader import ATTRIBUTE_NAMES as OVAD_NAMES
@@ -70,12 +73,12 @@ def _single_arg_prompt_builder():
 
 def configure_tier_dgp() -> None:
     # Bindings for the OVAD tier2d DGP path (training-free).
-    import tier1_GDE
-    import tier2d_dgp
+    import gde
+    import dgp
 
-    tier2d_dgp.ATTR_TO_IDX = OVAD_ATTR_TO_IDX_DUAL
-    tier2d_dgp.build_prompts_for_attribute = _single_arg_prompt_builder()
-    tier1_GDE._get_artifacts_dir = _get_artifacts_dir
+    dgp.ATTR_TO_IDX = OVAD_ATTR_TO_IDX_DUAL
+    dgp.build_prompts_for_attribute = _single_arg_prompt_builder()
+    gde._get_artifacts_dir = _get_artifacts_dir
 
 
 def _train_feats():
@@ -95,7 +98,7 @@ def _bind_tables(*mods):
 
 
 def _bind_train_loaders(*mods):
-    # CelebA train-split loaders (defined in tier1_GDE, re-imported by value elsewhere).
+    # CelebA train-split loaders (defined in gde, re-imported by value elsewhere).
     # Attributes stay int8 tri-state — the masked cores (train_probes, Chow-Liu,
     # temperature fit) and TriStateQueryGenerator handle the -1 entries themselves.
     for mod in mods:
@@ -117,8 +120,8 @@ def _masked_bce(logits: torch.Tensor, yb: torch.Tensor) -> torch.Tensor:
 
 
 def _masked_train_probes_linear(cfg, dev):
-    # Replaces tier4_bayes.train_probes — identical loop, masked loss (tri-state labels).
-    import tier4_bayes as t4
+    # Replaces bap.train_probes — identical loop, masked loss (tri-state labels).
+    import bap as t4
     train_feats = t4._load_train_features().to(dev)
     train_attrs = t4._load_train_attributes().float().to(dev)
     probe = torch.nn.Linear(t4.FEATURE_DIM, t4.N_ATTR).to(dev)
@@ -139,9 +142,9 @@ def _masked_train_probes_linear(cfg, dev):
 
 
 def _masked_train_probes_mlp(train_feats, train_attrs, cfg):
-    # Replaces tier3_hybrid.train_probes (DualScore Stage 1) — identical two-way split
+    # Replaces attribute_probes.train_probes (DualScore Stage 1) — identical two-way split
     # and loop, masked loss + masked val-accuracy readout.
-    import tier3_hybrid as th
+    import attribute_probes as th
     torch.manual_seed(cfg.seed)
     N = train_feats.shape[0]
     perm = torch.randperm(N, generator=torch.Generator().manual_seed(cfg.seed))
@@ -181,7 +184,7 @@ def _masked_train_probes_mlp(train_feats, train_attrs, cfg):
 
 
 def _masked_pair_counts(A: torch.Tensor) -> torch.Tensor:
-    # Replaces tier5_cdbayes._pair_counts — pairwise-complete observations: a row counts
+    # Replaces cdbayes._pair_counts — pairwise-complete observations: a row counts
     # for pair (a, b) only if labeled (!= -1) on BOTH. Binary labels ⇒ bit-identical.
     M = (A != -1).float()
     A1 = (A == 1).float()
@@ -195,7 +198,7 @@ def _masked_pair_counts(A: torch.Tensor) -> torch.Tensor:
 
 
 def _masked_mutual_information_matrix(A: torch.Tensor, alpha: float) -> torch.Tensor:
-    # Replaces tier5_cdbayes.mutual_information_matrix — same MI, but each pair is
+    # Replaces cdbayes.mutual_information_matrix — same MI, but each pair is
     # normalized by ITS OWN jointly-labeled total (= N for binary ⇒ identical).
     counts = _masked_pair_counts(A)
     n_pair = counts.sum(dim=(2, 3), keepdim=True)
@@ -208,9 +211,9 @@ def _masked_mutual_information_matrix(A: torch.Tensor, alpha: float) -> torch.Te
 
 
 def _masked_build_chow_liu_tree(A: torch.Tensor, alpha: float):
-    # Replaces tier5_cdbayes.build_chow_liu_tree — same MST/CPT construction over the
+    # Replaces cdbayes.build_chow_liu_tree — same MST/CPT construction over the
     # masked sufficient statistics; marginals over each attribute's own labeled count.
-    import tier5_cdbayes as t5
+    import cdbayes as t5
     A = A.float().cpu()
     n = A.shape[1]
     counts = _masked_pair_counts(A)
@@ -233,7 +236,7 @@ def _masked_build_chow_liu_tree(A: torch.Tensor, alpha: float):
 
 def _masked_fit_temperature_scalars(logits: torch.Tensor, labels: torch.Tensor,
                                     steps: int, lr: float) -> torch.Tensor:
-    # Replaces tier5_cdbayes.fit_temperature_scalars — validity-weighted NLL; each τ's
+    # Replaces cdbayes.fit_temperature_scalars — validity-weighted NLL; each τ's
     # term is scaled independently, so masking never shifts another attribute's fit.
     w = (labels >= 0).float()
     y = labels.clamp(min=0)
@@ -250,7 +253,7 @@ def _masked_fit_temperature_scalars(logits: torch.Tensor, labels: torch.Tensor,
 
 def _masked_expected_calibration_error(p: torch.Tensor, y: torch.Tensor,
                                        n_bins: int) -> torch.Tensor:
-    # Replaces tier5_cdbayes.expected_calibration_error — -1 entries carry zero weight
+    # Replaces cdbayes.expected_calibration_error — -1 entries carry zero weight
     # in bin counts, gaps, and the per-attribute denominator.
     w = (y >= 0).float()
     y = y.clamp(min=0)
@@ -265,12 +268,12 @@ def _masked_expected_calibration_error(p: torch.Tensor, y: torch.Tensor,
 
 
 def _make_tristate_query_generator():
-    # Deferred import: tier3_dgp pulls the whole CelebA stack at import time; only the
+    # Deferred import: phi_gate pulls the whole CelebA stack at import time; only the
     # trained-tier configure functions pay that cost.
-    import tier3_dgp
+    import phi_gate
     from ovad.generate_gt import HAMMING_RATE, _masked_hamming_rate_batch
 
-    class TriStateQueryGenerator(tier3_dgp.QueryGenerator):
+    class TriStateQueryGenerator(phi_gate.QueryGenerator):
         # OVAD synthetic-query sampler — tri-state semantics on every mask:
         #   query axes only where the reference is LABELED (==1 has / ==0 lacks, never -1);
         #   candidate constraints ==1 / ==0 (a -1 candidate proves nothing -> excluded);
@@ -328,70 +331,70 @@ def _make_tristate_query_generator():
 
 
 def configure_dualscore() -> None:
-    # Bindings for the tier3 DualScore path (tier3_hybrid + tier3_dgp + tier2d_dgp deps).
-    # MUST run before importing tier3_dualscore, so its by-value imports see these bindings.
-    import tier1_GDE
-    import tier2d_dgp
-    import tier3_dgp
-    import tier3_hybrid
+    # Bindings for the tier3 DualScore path (attribute_probes + phi_gate + dgp deps).
+    # MUST run before importing dual_score, so its by-value imports see these bindings.
+    import gde
+    import dgp
+    import phi_gate
+    import attribute_probes
 
-    _bind_tables(tier1_GDE, tier2d_dgp, tier3_dgp, tier3_hybrid)
-    _bind_train_loaders(tier1_GDE, tier3_hybrid)
-    tier1_GDE._get_artifacts_dir = _get_artifacts_dir  # visual_directions cache → artifacts/ovad/
-    # tier2d_dgp must get the RAW-only map: compute_mu_txt iterates ATTR_TO_IDX itself,
+    _bind_tables(gde, dgp, phi_gate, attribute_probes)
+    _bind_train_loaders(gde, attribute_probes)
+    gde._get_artifacts_dir = _get_artifacts_dir  # visual_directions cache → artifacts/ovad/
+    # dgp must get the RAW-only map: compute_mu_txt iterates ATTR_TO_IDX itself,
     # so the dual map would double-count every attribute (and feed underscored names to
-    # the prompt builder). Nothing calls tier2d_dgp with underscored names.
-    tier2d_dgp.ATTR_TO_IDX = OVAD_ATTR_TO_IDX
-    tier2d_dgp.build_prompts_for_attribute = _single_arg_prompt_builder()
+    # the prompt builder). Nothing calls dgp with underscored names.
+    dgp.ATTR_TO_IDX = OVAD_ATTR_TO_IDX
+    dgp.build_prompts_for_attribute = _single_arg_prompt_builder()
     # Rebind on every module holding a by-value copy (their imports already ran above).
     qg = _make_tristate_query_generator()
-    tier3_dgp.QueryGenerator = qg
-    tier3_hybrid.QueryGenerator = qg
-    tier3_hybrid.train_probes = _masked_train_probes_mlp   # tri-state Stage 1
-    tier3_hybrid.load_image_features = lambda: ovad_data.load_image_features("test")
+    phi_gate.QueryGenerator = qg
+    attribute_probes.QueryGenerator = qg
+    attribute_probes.train_probes = _masked_train_probes_mlp   # tri-state Stage 1
+    attribute_probes.load_image_features = lambda: ovad_data.load_image_features("test")
 
     # AttributeProbes defaults n_attr=40 and train_probes constructs it without the arg;
     # subclass with the OVAD default so every construction site gets 117 heads.
-    _CelebAProbes = tier3_hybrid.AttributeProbes
+    _CelebAProbes = attribute_probes.AttributeProbes
 
     class OvadAttributeProbes(_CelebAProbes):
         def __init__(self, d_model, hidden, n_attr=N_ATTRS):
             super().__init__(d_model, hidden, n_attr=n_attr)
 
-    tier3_hybrid.AttributeProbes = OvadAttributeProbes
+    attribute_probes.AttributeProbes = OvadAttributeProbes
 
 
 def configure_tier5() -> None:
-    # Bindings for the tier5 Bprime_listnet path (tier4_bayes + tier5_cdbayes + deps).
-    import tier1_GDE
-    import tier3_dgp
-    import tier4_bayes
-    import tier5_cdbayes as t5
+    # Bindings for the tier5 Bprime_listnet path (bap + cdbayes + deps).
+    import gde
+    import phi_gate
+    import bap
+    import cdbayes as t5
     import vm_pipeline
 
     from ovad.generate_gt import query_indices as ovad_query_indices
 
-    _bind_tables(tier3_dgp, tier4_bayes, t5, vm_pipeline)
-    for mod in (tier4_bayes, t5):
+    _bind_tables(phi_gate, bap, t5, vm_pipeline)
+    for mod in (bap, t5):
         mod.N_ATTR = N_ATTRS
         mod._get_artifacts_dir = _get_artifacts_dir   # probe/temperature caches → artifacts/ovad/
-    _bind_train_loaders(tier1_GDE, tier4_bayes, t5)
+    _bind_train_loaders(gde, bap, t5)
     # Rebind on every module holding a by-value copy (their imports already ran above).
     qg = _make_tristate_query_generator()
-    tier3_dgp.QueryGenerator = qg
-    tier4_bayes.QueryGenerator = qg
+    phi_gate.QueryGenerator = qg
+    bap.QueryGenerator = qg
     t5.QueryGenerator = qg
 
     # Tri-state label consumers → masked variants (module-global lookups inside
     # load_or_train_probes / load_or_fit_temperatures / the tree builder see these).
-    tier4_bayes.train_probes = _masked_train_probes_linear
+    bap.train_probes = _masked_train_probes_linear
     t5._pair_counts = _masked_pair_counts
     t5.mutual_information_matrix = _masked_mutual_information_matrix
     t5.build_chow_liu_tree = _masked_build_chow_liu_tree
     t5.fit_temperature_scalars = _masked_fit_temperature_scalars
     t5.expected_calibration_error = _masked_expected_calibration_error
 
-    tier4_bayes.load_image_features = lambda: ovad_data.load_image_features("test")
+    bap.load_image_features = lambda: ovad_data.load_image_features("test")
 
     # Benchmark query strings use underscore-normalized names with ':' and '/' — the
     # CelebA query_indices lookup would KeyError; OVAD's own parser owns that mapping.
@@ -405,7 +408,7 @@ def configure_tier5() -> None:
         correct = (P_test.cpu() > 0.5) == (attrs == 1)
         acc = ((correct & valid).sum(0).float() / valid.sum(0).clamp(min=1))
         worst = int(acc.argmin())
-        tier4_bayes.log(f"  probe test acc (masked): mean {acc.mean():.4f}  "
+        bap.log(f"  probe test acc (masked): mean {acc.mean():.4f}  "
                         f"min {acc[worst]:.4f} ({OVAD_NAMES[worst]})")
 
-    tier4_bayes.probe_accuracy_diagnostic = _ovad_probe_diag
+    bap.probe_accuracy_diagnostic = _ovad_probe_diag

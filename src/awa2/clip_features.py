@@ -21,6 +21,9 @@ from torchvision import transforms
 from transformers import CLIPModel
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Baselines"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Trained"))
 
 from awa2.data_loader import (_get_artifacts_dir, _get_awa2_root,
                               load_image_index, load_split)

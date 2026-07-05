@@ -28,6 +28,9 @@ from pathlib import Path
 import torch
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Baselines"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Training-Free"))
+sys.path.insert(0, str(Path(__file__).parents[1] / "Trained"))
 
 from ovad import data_loader as ovad_data
 from ovad.adapter import configure_tier5 as configure_ovad
@@ -51,7 +54,7 @@ def run_diagnosis(cfg, feats, P, tree, gt_list, out_dir) -> None:
     # swept on TEST, so cite the CURVE as mechanism evidence, never the argmax as a result.
     from eval import format_results_table
     from results_saver import save_results_csv
-    from tier5_cdbayes import StageAPrime
+    from cdbayes import StageAPrime
     from vm_pipeline import evaluate_scorer, log
 
     summary = []
@@ -88,15 +91,15 @@ def main() -> None:
     # Imported AFTER configure_ovad so their module-level reads see OVAD bindings.
     from eval import format_results_table
     from results_saver import output_subdir, save_results_csv
-    from tier3_train_utils import assert_db_frozen
-    from tier4_bayes import (Tier4Config, load_or_train_probes,
+    from fusion_train_utils import assert_db_frozen
+    from bap import (BAPConfig, load_or_train_probes,
                              probe_accuracy_diagnostic)
-    from tier5_cdbayes import (StageAPrime, Tier5Config, build_chow_liu_tree,
+    from cdbayes import (StageAPrime, CDBayesConfig, build_chow_liu_tree,
                                calibrated_posteriors, load_or_fit_temperatures,
                                make_stage_b_prime_chunk, posteriors, train_phi_prime)
     from vm_pipeline import evaluate_scorer, log, save_training_curve, set_log_file
 
-    cfg = Tier5Config(tier4=replace(Tier4Config(), hamming_max=OVAD_HAMMING_MAX))
+    cfg = CDBayesConfig(tier4=replace(BAPConfig(), hamming_max=OVAD_HAMMING_MAX))
     if args.epochs is not None:
         cfg = replace(cfg, tier4=replace(cfg.tier4, epochs=args.epochs))
     if args.quick:
