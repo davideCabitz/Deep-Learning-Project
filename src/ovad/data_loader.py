@@ -47,7 +47,7 @@ def _get_artifacts_dir():
 
 
 def _get_ovad_root():
-    root = _get_project_root() / 'OVAD'
+    root = _get_project_root() / 'OVAD_Dataset'
     ann_path = root / 'val2017' / 'ovad2000.json'
     if not ann_path.exists():
         raise FileNotFoundError(f"OVAD annotations not found at {ann_path}.")
@@ -55,7 +55,7 @@ def _get_ovad_root():
 
 
 def load_raw_annotation() -> dict:
-    # The single source of truth: OVAD/val2017/ovad2000.json, loaded once per call.
+    # The single source of truth: OVAD_Dataset/val2017/ovad2000.json, loaded once per call.
     with open(_get_ovad_root() / 'val2017' / 'ovad2000.json', 'r') as f:
         return json.load(f)
 

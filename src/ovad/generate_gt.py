@@ -4,7 +4,7 @@ Ground-truth generator for OVAD — masked relative-Hamming rule over tri-state 
 Reproduces the INSTRUCTOR PROTOCOL verified in src/generate_custom_gt.py (exact
 reconstruction of the official celeba_evaluation.json) and mirrored in
 src/awa2/generate_gt.py, adapted for OVAD's structural differences (see
-OVAD/OVAD_Implementation_Plan.md §3):
+OVAD_Dataset/OVAD_Implementation_Plan.md §3):
 
   For query (T+, T-):
     source s is valid  iff  (0) s VIOLATES every +/- constraint — a source that already
@@ -273,7 +273,7 @@ def main():
 
     # 2. Viability report over auto-generated candidates on the FINAL test corpus.
     report = viability_report(attrs)
-    out_dir = _get_project_root() / "OVAD"
+    out_dir = _get_project_root() / "OVAD_Dataset"
     report_path = out_dir / "query_viability.csv"
     with open(report_path, "w", newline="") as f:
         w = csv.writer(f)
