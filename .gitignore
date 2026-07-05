@@ -23,7 +23,7 @@ celeba/
 celeba.zip
 Animals_with_Attributes2/
 *.zip
-OVAD/
+OVAD_Dataset/
 
 # IDE
 .vscode/
