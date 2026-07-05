@@ -1,0 +1,14 @@
+query,R@1,R@5,R@10,P@1,P@5,P@10,num_sources
++clothes_color:blue,0.1489,0.5734,0.7606,0.1489,0.1590,0.1503,497
+-clothes_color:black,0.1721,0.5812,0.8377,0.1721,0.1610,0.1737,308
++material:wood/wooden/bamboo/hardwood,0.0183,0.0999,0.1693,0.0183,0.0205,0.0183,821
++pattern:striped/lined/pinstriped,0.0684,0.1624,0.1909,0.0684,0.0781,0.0635,351
++state:closed,0.0183,0.0612,0.1346,0.0183,0.0122,0.0153,327
++face_expression:happy/smiling/laughing/grinning/joyful,0.0060,0.0240,0.0419,0.0060,0.0048,0.0042,167
+-cleanliness:unclean/dirt/dirty/muddy,0.0222,0.1333,0.2556,0.0222,0.0289,0.0311,90
++size:big/large/giant/huge,0.0000,0.0990,0.1386,0.0000,0.0297,0.0228,101
+-clothes_color:black & +face_expression:happy/smiling/laughing/grinning/joyful,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,55
++state:closed & -cleanliness:unclean/dirt/dirty/muddy,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,5
++material:wood/wooden/bamboo/hardwood & -cleanliness:unclean/dirt/dirty/muddy,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,16
++clothes_color:blue & -clothes_color:black & +face_expression:happy/smiling/laughing/grinning/joyful,0.0417,0.0833,0.1250,0.0417,0.0167,0.0125,24
+MEAN,0.0413,0.1515,0.2212,0.0413,0.0426,0.0410,
