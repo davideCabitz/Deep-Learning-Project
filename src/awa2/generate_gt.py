@@ -10,12 +10,16 @@ CLASS-level, ground truth collapses to a 50×50 class relation, then expands to 
                                      proven by generate_custom_gt.py's exact reconstruction;
                                      without it, satisfying-class sources are twin retrieval).
     valid target CLASS c_t  iff  (1) c_t strictly satisfies every ± constraint, AND
-                                  (2) Hamming(class_attr[c_s], class_attr[c_t]) ≤ 2 on the
-                                      NON-queried attributes (identity preserved).
+                                  (2) freeHam(c_s, c_t) ≤ min_ham(c_s) + HAMMING_SLACK on the
+                                      NON-queried attributes — the ADAPTIVE radius: the spec's
+                                      fixed ≤2 is impossible at class level (min inter-class
+                                      free-Hamming is 3–21), so identity preservation becomes
+                                      "the closest satisfying classes to the source".
     valid target IMAGES = all test images whose class is a valid target class.
 
 Viability (spec §3.1.2): keep a source only if it has ≥ MIN_TARGETS valid target images.
-To keep the JSON and eval tractable we subsample sources and cap targets per source.
+No source/target caps — exact parity with generate_custom_gt.py: every valid source is
+emitted with its COMPLETE target set, so Precision@K / Recall@K are exact.
 
 Query set: auto-generate candidates, score their viability + discriminativeness, emit a
 report CSV, and freeze a CURATED list (CURATED_QUERIES below, chosen from that report).
@@ -41,12 +45,12 @@ from awa2.data_loader import (ATTR_TO_IDX, ATTRIBUTE_NAMES, N_ATTRS,
                               _get_project_root, load_class_attribute_matrix,
                               load_class_labels, load_class_names)
 
-HAMMING_MAX = 2          # spec §3.1.1 — identity-preservation radius on free attributes
+# Class-level generalization of spec §3.1.1's "Hamming ≤ 2": targets are the satisfying
+# classes within min_ham(source) + slack. (A fixed radius of 2 is structurally empty —
+# min free-attr Hamming from any violating source class to any satisfying class is 3–21.)
+HAMMING_SLACK = 2
 MIN_TARGETS = 5          # spec §3.1.2 — statistical-significance floor per source
-MAX_SOURCES_PER_QUERY = 60   # subsample cap (fixed seed) — keeps eval tractable
-MAX_TARGETS_PER_SOURCE = 500 # cap target list length per source
 MAX_DISCRIMINATIVE = 0.30    # reject queries where > this fraction of corpus is a target
-SUBSAMPLE_SEED = 7
 
 # Curated benchmark, chosen from the viability report (see __main__). Mix of single- and
 # multi-attribute, spanning color/texture, body parts, locomotion, habitat, diet.
@@ -58,7 +62,7 @@ CURATED_QUERIES = [
     "+horns",
     "+longneck",
     "-quadrapedal",
-    "+swims & -ocean",
+    "+swims & +ocean",
     "+big & -meat",
     "+forest & -arctic",
     "+furry & -water & +ground",
@@ -90,22 +94,26 @@ def _source_class_mask(class_matrix, pi, ni):
 
 
 def _valid_target_classes(class_matrix, pi, ni, free, src_class):
-    # Boolean mask over the 50 classes: strict ± satisfaction + Hamming ≤ 2 on free attrs
-    # relative to src_class. class_matrix is [50, 85] in {0,1}.
+    # Boolean mask over the 50 classes: strict ± satisfaction + ADAPTIVE Hamming radius
+    # (freeHam ≤ min over satisfying classes + HAMMING_SLACK) relative to src_class.
+    # class_matrix is [50, 85] in {0,1}.
     strict = torch.ones(class_matrix.shape[0], dtype=torch.bool)
     for a in pi:
         strict &= class_matrix[:, a] == 1
     for b in ni:
         strict &= class_matrix[:, b] == 0
+    if not strict.any():
+        return strict
     if free:
         free_cols = torch.tensor(free, dtype=torch.long)
         ham = (class_matrix[:, free_cols] != class_matrix[src_class, free_cols]).sum(dim=1)
-        strict &= ham <= HAMMING_MAX
+        strict &= ham <= ham[strict].min() + HAMMING_SLACK
     return strict
 
 
-def build_ground_truth(query_str, class_matrix, test_labels, gen):
-    # {src_test_idx: [target_test_idx, ...]} for one query, over the TEST split.
+def build_ground_truth(query_str, class_matrix, test_labels):
+    # {src_test_idx: [complete target list]} for one query, over the TEST split — the REAL
+    # ground truth, no source/target caps (parity with generate_custom_gt.build_ground_truth).
     # Indices are split-local (rows of the test feature/attribute tables) — the same
     # index space every AwA2 tier scores against.
     pi, ni, free = query_indices(query_str)
@@ -132,16 +140,7 @@ def build_ground_truth(query_str, class_matrix, test_labels, gen):
             tgt = target_imgs[target_imgs != s]
             if len(tgt) < MIN_TARGETS:
                 continue
-            if len(tgt) > MAX_TARGETS_PER_SOURCE:
-                perm = torch.randperm(len(tgt), generator=gen)[:MAX_TARGETS_PER_SOURCE]
-                tgt = tgt[perm]
             ground_truth[str(s)] = sorted(tgt.tolist())
-
-    # Subsample sources for tractability (deterministic).
-    if len(ground_truth) > MAX_SOURCES_PER_QUERY:
-        keys = list(ground_truth.keys())
-        pick = torch.randperm(len(keys), generator=gen)[:MAX_SOURCES_PER_QUERY].tolist()
-        ground_truth = {keys[i]: ground_truth[keys[i]] for i in sorted(pick)}
     return ground_truth
 
 
@@ -161,8 +160,7 @@ def viability_report(class_matrix, test_labels):
     n_test = len(test_labels)
     rows = []
     for q in _candidate_queries():
-        gen = torch.Generator().manual_seed(SUBSAMPLE_SEED)
-        gt = build_ground_truth(q, class_matrix, test_labels, gen)
+        gt = build_ground_truth(q, class_matrix, test_labels)
         if not gt:
             rows.append((q, 0, 0.0, 0.0))
             continue
@@ -192,29 +190,16 @@ def main():
     # 2. Freeze the curated benchmark JSON (CelebA schema).
     gt_list = []
     for q in CURATED_QUERIES:
-        gen = torch.Generator().manual_seed(SUBSAMPLE_SEED)
-        gt = build_ground_truth(q, class_matrix, test_labels, gen)
-        disc = 0.0
-        if gt:
-            disc = (sum(len(v) for v in gt.values()) / len(gt)) / len(test_labels)
+        gt = build_ground_truth(q, class_matrix, test_labels)
         if not gt:
-            print(f"  [!] SKIP {q}: no source has ≥{MIN_TARGETS} targets")
+            print(f"  [!] SKIP {q}: no source passes the policy + >={MIN_TARGETS}-target floor")
             continue
+        disc = (sum(len(v) for v in gt.values()) / len(gt)) / len(test_labels)
         if disc > MAX_DISCRIMINATIVE:
             print(f"  [!] WARN {q}: discriminativeness {disc:.3f} > {MAX_DISCRIMINATIVE} (too easy)")
         gt_list.append({"query": q, "ground_truth": gt})
         print(f"  {q:<34s} sources={len(gt):3d}  disc={disc:.3f}")
 
-    if not gt_list:
-        # Structural finding, not a failure of this code (report §11): under clause 0 a
-        # source class violates the constraints while a target class satisfies them, so
-        # they are different species — and inter-class free-attribute Hamming (min 3,
-        # median ~20 of 85) always exceeds the spec's identity radius of 2. Class-level
-        # attributes admit NO valid compositional-edit benchmark; refuse to freeze one.
-        raise SystemExit("[FAIL] No query has a single valid source under the corrected "
-                         "protocol — AwA2's class-level attributes are structurally "
-                         "incompatible with the §3.1.1 edit rule (see report §11). "
-                         "Not writing an empty benchmark JSON.")
     eval_dir = _get_project_root() / "Evaluation"
     eval_dir.mkdir(exist_ok=True)
     json_path = eval_dir / "awa2_evaluation.json"

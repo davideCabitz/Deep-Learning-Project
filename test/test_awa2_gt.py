@@ -1,9 +1,10 @@
 """
 AwA2 ground-truth generator verification.
 
-Unit checks the relaxed-Hamming rule on a synthetic 4-class toy matrix (strict ±
-satisfaction + Hamming ≤ 2 on free attributes), the ≥5-targets viability floor, and that
-the produced JSON is consumable by the project's own eval.load_eval_json / parse_query.
+Unit checks the adaptive relaxed-Hamming rule on a synthetic 4-class toy matrix (strict ±
+satisfaction + freeHam ≤ min over satisfying classes + HAMMING_SLACK), the ≥5-targets
+viability floor, and that the produced JSON is consumable by eval.load_eval_json /
+parse_query with exact (uncapped) target sets.
 
 Run:  pytest test/test_awa2_gt.py
 """
@@ -34,10 +35,33 @@ def _toy_matrix():
 
 def test_valid_target_classes_strict_and_hamming(monkeypatch):
     cm = _toy_matrix()
-    # Query "+attr0": free = attrs 1..4. From source c0, valid = strict(attr0=1) AND Ham≤2.
+    # Query "+attr0": free = attrs 1..4. From source c0, valid = strict(attr0=1) AND
+    # freeHam ≤ min(0, over satisfying) + slack 2.
     pi, ni, free = [0], [], [1, 2, 3, 4]
     mask = gg._valid_target_classes(cm, pi, ni, free, src_class=0)
-    assert mask.tolist() == [True, True, True, False]  # c3 excluded by Hamming 4
+    assert mask.tolist() == [True, True, True, False]  # c3 excluded: Ham 4 > 0 + slack 2
+
+
+def test_adaptive_radius_reaches_distant_satisfying_classes():
+    # The fixed-2 rule is empty on AwA2 (min inter-class free-Ham 3–21); the adaptive rule
+    # must still find the NEAREST satisfying classes. Source c0 violates "+attr0"; the
+    # satisfying classes sit at free-Ham 3 and 4 (≤ 3+2) and 8 (> 3+2, excluded).
+    cm = torch.tensor([
+        [0, 1, 1, 1, 0, 0, 0, 0, 0],   # c0 — source, attr0=0
+        [1, 0, 0, 0, 1, 0, 0, 0, 0],   # c1 — satisfies, free-Ham 4 from c0
+        [1, 1, 1, 0, 0, 1, 1, 0, 0],   # c2 — satisfies, free-Ham 3 (the minimum)
+        [1, 0, 0, 0, 1, 1, 1, 1, 1],   # c3 — satisfies, free-Ham 8 > min+slack
+    ], dtype=torch.float32)
+    pi, ni, free = [0], [], list(range(1, 9))
+    mask = gg._valid_target_classes(cm, pi, ni, free, src_class=0)
+    assert mask.tolist() == [False, True, True, False]
+
+
+def test_valid_target_classes_empty_when_nothing_satisfies():
+    cm = _toy_matrix()
+    # "-attr0": no toy class has attr0=0 -> all-False, no min() crash.
+    mask = gg._valid_target_classes(cm, [], [0], [1, 2, 3, 4], src_class=0)
+    assert not mask.any()
 
 
 def test_negative_constraint_excludes_classes():
@@ -102,14 +126,20 @@ def test_generated_json_is_eval_compatible():
         assert set(entry.keys()) == {"query", "ground_truth"}
         pos, neg = parse_query(entry["query"])          # must parse without error
         assert pos or neg
-        pi, ni, _ = gg.query_indices(entry["query"])
+        pi, ni, free = gg.query_indices(entry["query"])
         for src, targets in entry["ground_truth"].items():
             assert int(src) >= 0
             assert len(targets) >= gg.MIN_TARGETS
             assert int(src) not in targets              # source excluded from its targets
-            if cm is not None:                          # clause 0: source violates all
+            if cm is not None:
                 c = labels[int(src)]
+                # Clause 0: source violates every ± constraint.
                 assert all(cm[c, a] == 0 for a in pi) and all(cm[c, b] == 1 for b in ni)
+                # Targets: strict satisfaction + adaptive radius, and the set is EXACT —
+                # every test image of a valid target class is present (no cap).
+                mask = gg._valid_target_classes(cm, pi, ni, free, int(c))
+                expected = (mask[labels]).nonzero(as_tuple=True)[0].tolist()
+                assert targets == [t for t in expected if t != int(src)]
 
 
 if __name__ == "__main__":
