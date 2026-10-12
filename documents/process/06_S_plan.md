@@ -1,5 +1,9 @@
 # Track S — Asymmetric Conditional Subspaces: Complete Theoretical and Implementation Reference
 
+> **📜 Process document, kept as written.** Full design reference for Track S by Davide Cabitza, June 29, 2026.
+>
+> **Outcome:** implemented as **Asymmetric Subspaces** ([`src/Training-Free/asymmetric_subspaces.py`](../../src/Training-Free/asymmetric_subspaces.py)). Best mean R@5 was 0.045 (stacked, k = 50/50, λ = 0.1): 2× CLAY, but below the 0.070 Tier-0 bar that this plan set as its success criterion. File paths in this document refer to the layout before the July 5 refactor; see the [old → new file map](../README.md#old-file-names).
+
 > **Purpose.** This document is the single authoritative source for Track S
 > (`src/tier2a_subspace.py`). It covers: the failure modes Track S is designed to fix,
 > the full geometric theory behind the approach, every mathematical operation with

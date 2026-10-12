@@ -1,5 +1,7 @@
 # Track S — Paper Notions Reference
 
+> **📜 Process document, kept as written.** Reading notes for Track S by Davide Cabitza, June 28, 2026. Companion to [06_S_plan](06_S_plan.md); the outcome is recorded there.
+
 > **Purpose.** Condensed reading notes for the five papers backing Track S
 > (Asymmetric Conditional Subspaces). For each paper: summary → key findings →
 > what / how / why → direct relevance to the implementation of `src/tier2a_subspace.py`.

@@ -140,7 +140,7 @@ This is an honest and informative result. A-BAP scores the ground-truth rule dir
 ```
 notebooks/
 ├── deliverable_report.ipynb      Final report: full method, code, results and analysis
-└── ...                           Feature extraction, statistical evaluation, dataset notebooks
+└── progressions/                 Exploratory notebooks: feature extraction, early fusion, statistics
 src/
 ├── Baselines/                    CLIP, CLAY and GDE reproductions
 ├── Training-Free/                CLIP Enhanced, GDE-VP, subspace methods, DGP
@@ -151,7 +151,12 @@ src/
 Evaluation/                       Official and custom ground-truth JSON files
 output/                           Per-method result CSVs, training curves and figures
 test/                             Unit tests
-documents/                        Project specification, literature notes, design reports
+documents/
+├── DECISIONS.md                  The 15 decisions that shaped the project
+├── project_specification.md      The assignment (course-provided)
+├── literature/                   State-of-the-art review and reading list
+├── process/                      16 design documents, in the order they were written
+└── logs/                         Per-person progress logs
 ```
 
 ## How to run
@@ -166,6 +171,14 @@ The whole project is reproducible from **`notebooks/deliverable_report.ipynb`**,
 | `RETRAIN_PROBES` / `REFIT_CALIBRATION` | loads cached probes and calibration | refits them (seconds to minutes) |
 
 Only the official `celeba_evaluation.json` (in `Evaluation/`) is required on the default path. The raw CelebA images are needed only to rebuild features from scratch or to render the qualitative retrieval grids.
+
+---
+
+## How the project evolved
+
+The final model was not the plan. The project started as a geometric fusion problem, ran into a plateau that four families of training-free methods and several learned modules could not break, and ended with a change of scoring space, from cosine geometry to Bayesian inference. **[`documents/DECISIONS.md`](documents/DECISIONS.md)** walks through the 15 decisions along the way, including the dead ends and the negative results, each linked to the document where it was made.
+
+All the plans, theory briefs and design reports we wrote are kept in [`documents/process/`](documents/process/), unedited apart from a banner on each that says what happened next. Our progress logs are in [`documents/logs/`](documents/logs/). The [documents index](documents/README.md) also maps the working names used at the time ("Tier-2d", "Track V", "CD-Bayes"…) to the final ones.
 
 ---
 
@@ -187,5 +200,9 @@ Only the official `celeba_evaluation.json` (in `Evaluation/`) is required on the
 - Chow & Liu. *Approximating discrete probability distributions with dependence trees.* IEEE Trans. Inf. Theory, 1968.
 - Cao et al. *Learning to rank: from pairwise approach to listwise approach.* ICML 2007. (ListNet)
 - Liu et al. *Deep learning face attributes in the wild.* ICCV 2015. (CelebA) · Xian et al., TPAMI 2018 (AwA2) · Bravo et al., CVPR 2023 (OVAD)
+
+## Team
+
+Alfonso Antognozzi and Davide Cabitza, June 15 – July 5, 2026. Who worked on what is recorded in the [progress logs](documents/logs/) and in the author line of each [process document](documents/README.md#process-documents).
 
 <p align="center"><sub>Developed for the Deep Learning course, 2026.</sub></p>

@@ -1,5 +1,7 @@
 # Data Contract — read this before writing any code
 
+> **📜 Process document: team agreement.** Data contract between the two members, written by Davide Cabitza on June 26, 2026, and in force for the whole project. It fixed the index-not-filename rule, the tensor shapes and the shared `get_ranking(src)` signature that every method plugs into. File paths in this document refer to the layout before the July 5 refactor; see the [old → new file map](../README.md#old-file-names).
+
 This file is the **agreement between the two of us** about the exact shape and
 format of every piece of data we pass between our two halves of the project.
 It is boring on purpose. Boring = nothing crashes when we plug our code together.

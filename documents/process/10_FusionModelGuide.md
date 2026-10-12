@@ -1,5 +1,9 @@
 # Fusion Model Guide — Geometry-Grounded Φ on top of Tier-2c
 
+> **📜 Process document, kept as written.** Theory and architecture guide for the first trained Φ by Alfonso Antognozzi, June 29, 2026.
+>
+> **Outcome:** implemented as the cross-attention Φ ([`src/Trained/cross_attention_phi.py`](../../src/Trained/cross_attention_phi.py), "Tier-3c"), mean R@5 0.104, below the training-free DGP (0.115). Learning on top of the same geometry did not break the plateau; see [11](11_Tier3_Variations_Report.md) and [13](13_FinalDestination.md). File paths in this document refer to the layout before the July 5 refactor; see the [old → new file map](../README.md#old-file-names).
+
 > **Purpose.** This document is the single reference for building the trained fusion module Φ.
 > It is structured in two parts:
 >

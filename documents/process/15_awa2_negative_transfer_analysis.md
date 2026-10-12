@@ -1,5 +1,7 @@
 # AwA2 Transfer Study — Why the CelebA Ranking Inverts, and What It Reveals About CLIP
 
+> **📜 Process document.** Transfer analysis by Alfonso Antognozzi, July 3, 2026, originally kept in `notebooks/`. "Report §11" below refers to section 11 of [`notebooks/deliverable_report.ipynb`](../../notebooks/deliverable_report.ipynb).
+
 > **⚠ SUPERSEDED (2026-07-04) — read report §11 instead.** The benchmark this document
 > analyzes predates the source-policy discovery (a valid source must VIOLATE every ±
 > constraint, proven by `generate_custom_gt.py --verify-official`'s exact reconstruction of
@@ -162,7 +164,7 @@ raw cosine over the probe channels.
 
 ## 6. Why LDE beats GDE (and what that says about the manifold machinery)
 
-First, the relationship (documents/papers/GDE.md; documents/Alfonso.md §tier2a_visual):
+First, the relationship (GDE paper, see [reading list](../literature/README.md); [logs/Alfonso.md](../logs/Alfonso.md) §tier2a_visual):
 **LDE is not an enhancement of GDE — it is the linear special case GDE generalizes.**
 Trager et al.'s linear "ideal words" formulation equals GDE when M = ℝⁿ (intrinsic mean →
 arithmetic mean, Exp/Log → identity). In our codebase LDE is kept as a zero-diff ablation

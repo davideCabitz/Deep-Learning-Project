@@ -1,6 +1,8 @@
 # OVAD Transfer Study — Why the CD-Bayes Champion Collapses, and Why It Can't Be Tuned Away
 
-**Status:** negative-transfer finding, analogous to `notebooks/awa2_negative_transfer_analysis.md`
+> **📜 Process document.** Transfer analysis by Alfonso Antognozzi, July 5, 2026, originally kept in `notebooks/`. Its conclusion is the README's cross-dataset finding: rule-based scoring wins when attributes are dense and per-image, and Dual Score is the safer default when they are not.
+
+**Status:** negative-transfer finding, analogous to [15_awa2_negative_transfer_analysis.md](15_awa2_negative_transfer_analysis.md)
 **Artifacts:** `output/ovad/*.csv`, `output/ovad/tier5_train_log.txt`, `output/ovad/tier5_diag_log.txt`,
 `output/ovad/tier5_diag_Aprime_lam*.csv`
 

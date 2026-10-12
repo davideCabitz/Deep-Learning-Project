@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+> **About this file.** These are the instructions we gave AI coding assistants (Claude Code) during development: always check proposals against the specification, apply SOLID, fail loudly, and follow a house style for comments. They describe how the code was meant to be written. Human-facing documentation starts at [`documents/README.md`](documents/README.md).
+
 ## ⚠️ ALWAYS-FIRST STEP — READ THE SPEC
 
 **Before answering, planning, or implementing ANYTHING, first read

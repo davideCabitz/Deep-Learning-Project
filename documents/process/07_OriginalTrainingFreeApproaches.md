@@ -1,5 +1,9 @@
 # Original Training-Free Approaches for Compositional Image Retrieval
 
+> **📜 Process document, kept as written.** Four original training-free proposals by Alfonso Antognozzi, June 29, 2026.
+>
+> **Outcome:** none shipped under these names. Approach 1 (Adaptive CLAY) is retired within this document. The NCS idea is the reference point for [09_planSV](09_planSV.md). **CKS** (Approach 4) is the most important in hindsight: [13_FinalDestination](13_FinalDestination.md) §1.3 credits it with "the right log-linear form" but notes it fed on uncalibrated cosines. Fixing exactly that produced BAP.
+
 Proposals for novel training-free methods that go beyond our current tiers. Each is designed to be genuinely original in the context of our pipeline and the cited literature (GDE, CLAY, PoS-Subspaces, SpaceVLM).
 
 ---
@@ -172,7 +176,7 @@ The interpolation parameter `t` controls how far the query moves from the refere
 
 ### Implementation Notes
 
-- `intrinsic_mean` is already implemented in [manifold.py](../src/manifold.py) — reuse directly.
+- `intrinsic_mean` is already implemented in [manifold.py](../../src/manifold.py) — reuse directly.
 - `n` (pseudo-positive set size) and `t` (interpolation strength) are the two key hyperparameters. Sweep `n ∈ {50, 200, 500}`, `t ∈ {0.3, 0.5, 0.7, 1.0}`.
 - Multiple positive attributes can alternatively be handled by taking the joint top-`n` set (images that score high on *all* positive prompts simultaneously) rather than chaining. Both variants are worth comparing.
 - The method requires one `intrinsic_mean` call per positive attribute per query — the only meaningful overhead over the baselines.

@@ -1,5 +1,9 @@
 # Tier-3 Variations — Motivation, Design, and Expected Impact
 
+> **📜 Process document, kept as written.** Design report by Alfonso Antognozzi, July 1, 2026. The VM connection details below have been redacted.
+>
+> **What happened next:** all three variants were run on July 1. Contrastive (ListNet) reached mean R@5 0.132 and negation 0.112. The **Composer** collapsed overall (R@5 0.023) but was the first method to score above zero on `-Male, -Mustache` (R@10 0.111), the first hint that negation needed a different scoring space. The best Tier-3 model was **Φ-Combined** (R@5 0.158). The three scripts were removed in the July 5 refactor; their code and results remain in git history. File paths in this document refer to the layout before the July 5 refactor; see the [old → new file map](../README.md#old-file-names).
+
 **Date:** 2026-07-01  
 **Author:** Alfonso Antognozzi  
 **Status:** Implemented, pending VM training run
@@ -194,7 +198,7 @@ Each script writes its CSV to `output/tier3_*/` and its weights to the same fold
 results back with:
 
 ```bash
-scp -P 5040 -r disi@lab-d2fdded3-9ba4-4188-80fa-16c27a4cd022.westeurope.cloudapp.azure.com:~/Deep-Learning-Project/output ./
+scp -P <port> -r <user>@<vm-host>:~/Deep-Learning-Project/output ./
 ```
 
 ---

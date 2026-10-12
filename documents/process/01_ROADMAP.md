@@ -1,5 +1,9 @@
 # Roadmap — Dynamic & Hybrid Conditioning for Compositional Image Retrieval
 
+> **📜 Process document, kept as written.** Initial plan by Davide Cabitza, June 18, 2026: two people, ten days, a hybrid of training-free baselines and a small trained Φ.
+>
+> **What changed afterwards:** the training-free ladder (Tier-0 → Tier-2d) plateaued, the "lightweight Φ" constraint was lifted in [13_FinalDestination](13_FinalDestination.md), and the final champion turned out to be a probabilistic scorer (A-BAP), which this plan did not foresee. The AwA2/OVAD stretch goals were completed. See [DECISIONS.md](../DECISIONS.md).
+
 ## Context
 
 This is a from-scratch Deep Learning course project (single Colab notebook deliverable) for a **team of 2, working for exactly 10 days (today included)**, on a university VM. The repo and a few files are scaffolded, but **no real work has been done yet** — everything below is still to build. The goal is to **excel** against the grading rubric: originality, methodological thoroughness, report clarity, empirical performance vs. a baseline, and code quality.

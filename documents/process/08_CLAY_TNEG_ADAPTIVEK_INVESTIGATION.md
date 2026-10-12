@@ -1,5 +1,7 @@
 # CLAY T_neg Suppression: Adaptive-k Investigation
 
+> **📜 Process document: negative result.** Investigation by Alfonso Antognozzi, June 29, 2026. Adaptive-k lowered CLAY's mean R@10 from 0.054 to 0.022 and was retired. The scripts it lists were deleted at the time.
+
 **Status:** Completed — negative result, approach retired  
 **Dataset:** CelebA test split, 19,962 images, 40 binary attributes  
 **Backbone:** CLIP ViT-B/32 (512-d embeddings)  

@@ -1,9 +1,13 @@
 # Negation-Aware Fusion Models — Design Report
 
+> **📜 Process document, kept as written.** Design report by Alfonso Antognozzi, July 1, 2026.
+>
+> **What happened next:** all three were run on July 2. **P2 became Dual Score** ([`src/Trained/dual_score.py`](../../src/Trained/dual_score.py)), the strongest non-probabilistic model on CelebA (R@5 0.175) and later the winner on both AwA2 and OVAD. P1 NegGate (R@5 0.062) and P3 PolarityComposer (R@5 0.013) underperformed and were removed in the July 5 refactor; they remain in git history. File paths in this document refer to the layout before the July 5 refactor; see the [old → new file map](../README.md#old-file-names).
+
 **Date:** 2026-07-01
 **Author:** Alfonso Antognozzi
 **Status:** Implemented, smoke-validated (CPU), pending VM training run
-**Companion plan:** `C:\Users\alfon\.claude\plans\analyze-the-documents-project-specificat-moonlit-bengio.md`
+**Companion plan:** a private planning note (not part of the repository)
 
 ---
 

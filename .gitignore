@@ -25,6 +25,9 @@ Animals_with_Attributes2/
 *.zip
 OVAD_Dataset/
 
+# Full-text copies of third-party papers (kept locally; see documents/literature/README.md)
+documents/papers/
+
 # IDE
 .vscode/
 .idea/

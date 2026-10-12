@@ -1,15 +1,19 @@
 # Training-Free Approach Split — Tier-2a, two parallel pipelines
 
+> **📜 Process document, kept as written.** Work split by Davide Cabitza, June 27, 2026: two independent training-free tracks, one per member.
+>
+> **Outcome:** Track V became the **GDE reproduction** and, extended, **GDE-VP** (best R@5 0.072) and Track S became **Asymmetric Subspaces** (best R@5 0.045). Neither strictly beat CLIP Enhanced (0.114), and `-Male, -Mustache` stayed at 0.000 under every geometric method. That plateau is what pushed the project toward learned fusion. File paths in this document refer to the layout before the July 5 refactor; see the [old → new file map](../README.md#old-file-names).
+
 > **Purpose.** Divide the Tier-2a *training-free* exploration into **two complete, self-contained
 > pipelines**, one per member, so each can build, evaluate, and write up an end-to-end method
 > **without ever syncing** with the other. They share only the already-frozen DB + eval harness, and
 > meet only in the final comparison table.
 >
-> **State going in.** Tier-0 ([tier0.py](../src/tier0.py)), Tier-0-enhanced
-> ([tier0_enhanced.py](../src/tier0_enhanced.py) — modality-gap centering nearly doubles R@5), and
-> Tier-1 CLAY ([tier1.py](../src/tier1.py) — currently *below* Tier-0, because faithful CLAY has no
-> +/− arithmetic) are all done and scored through [eval.py](../src/eval.py). See
-> [ROADMAP](ROADMAP.md) §"Tier 2a" and the progress logs ([Davide](Davide.md), [Alfonso](Alfonso.md)).
+> **State going in.** Tier-0 ([tier0.py](../../src/Baselines/clip_baseline.py)), Tier-0-enhanced
+> ([tier0_enhanced.py](../../src/Training-Free/clip_enhanced.py) — modality-gap centering nearly doubles R@5), and
+> Tier-1 CLAY ([tier1.py](../../src/Baselines/clay.py) — currently *below* Tier-0, because faithful CLAY has no
+> +/− arithmetic) are all done and scored through [eval.py](../../src/eval.py). See
+> [ROADMAP](01_ROADMAP.md) §"Tier 2a" and the progress logs ([Davide](../logs/Davide.md), [Alfonso](../logs/Alfonso.md)).
 
 Both tracks attack the **same gradeable insight** — "−X" is **negation** ("any value but X"), not vector
 subtraction — but through mechanisms that never touch the same code: **image-space orthogonal rejection**
@@ -60,10 +64,10 @@ then score by cosine. This is the assigned GDE paper turned into a retrieval met
 
 **What.** A self-contained scorer `src/tier2a_visual.py` exposing the same
 `make_get_ranking(query_str, …) → get_ranking(src_idx)` seam as every other tier
-([CONTRACT](CONTRACT.md) §7), writing `output/tier2a_visual_*.csv` in the shared CSV schema.
+([CONTRACT](02_CONTRACT.md) §7), writing `output/tier2a_visual_*.csv` in the shared CSV schema.
 
 **Why.** The diagnosed root weakness of Tier-0 / Tier-1 is the **modality gap** — text vectors are
-yanked into a different cone of the sphere ([Alfonso.md](Alfonso.md), the α=0/α=1 analysis; T0-enhanced
+yanked into a different cone of the sphere ([Alfonso.md](../logs/Alfonso.md), the α=0/α=1 analysis; T0-enhanced
 FIX 1 confirmed centering is "the entire win"). Track V removes the gap *by construction*: an attribute
 direction computed from images-that-have-X minus images-that-don't lives natively in the **image** cone,
 so there is nothing to center and no rotation `H` to fudge. GDE shows these visual primitive directions
@@ -83,16 +87,16 @@ both baselines.
    any other hair colour survives — exactly the "any value but X" semantics that plain subtraction
    (anti-X overshoot) gets wrong.
 4. **Score.** Cosine of the composed query against the frozen DB; exclude the source
-   ([CONTRACT](CONTRACT.md) §5).
+   ([CONTRACT](02_CONTRACT.md) §5).
 5. *(Optional score-side variant.)* Rank by `cos(v_d, v_ref) + Σ proj₊ − Σ |proj₋|`, keeping identity
    and constraints as separate, independently-weighted terms.
 
 **New artifact (keeps the track self-contained).** `clip_image_features_train.pt` +
 `celeba_attributes_train.pt` — a one-time Colab extraction. Already listed as Member B's deferred task
-in the [ROADMAP](ROADMAP.md), so it falls naturally in this lane and needs **no** input from Alfonso.
+in the [ROADMAP](01_ROADMAP.md), so it falls naturally in this lane and needs **no** input from Alfonso.
 
 **Papers to read first.**
-- **GDE** — Berasi et al., CVPR 2025 ([CLAY_compositionality.md](CLAY_compositionality.md), assigned) —
+- **GDE** — Berasi et al., CVPR 2025 ([CLAY_compositionality.md](../literature/README.md), assigned) —
   §3.2 / §3.3, Prop. 1–2 are the exact formulas.
 - **Trager et al.**, "Linear Spaces of Meanings", ICCV 2023 — the linear (LDE) baseline to ablate against.
 - **Oldfield et al.**, "Parts-of-Speech-Grounded Subspaces", NeurIPS 2023 — PGA on the CLIP sphere.
@@ -104,7 +108,7 @@ size; rejection ON vs naïve subtraction OFF; score-side vs query-side fusion.
 
 **Deliverables.** `src/tier2a_visual.py`; `output/tier2a_visual_*.csv`;
 `test/test_tier2a_visual.py` (log/exp round-trip, rejection orthogonality, end-to-end ranking — mirror
-[test/test_tier1.py](../test/test_tier1.py)); report sub-section *"Visual-prototype composition"*.
+[test/test_tier1.py](../../test/test_clay.py)); report sub-section *"Visual-prototype composition"*.
 
 ---
 
@@ -119,14 +123,14 @@ already-cached tensors.
 writing `output/tier2a_subspace_*.csv`.
 
 **Why.** Tier-1 sits *below* Tier-0 precisely because faithful CLAY merges + and − prompts into one SVD
-and only does focus/preserve — no modification, no negation ([Davide.md](Davide.md), Tier-1 results).
+and only does focus/preserve — no modification, no negation ([Davide.md](../logs/Davide.md), Tier-1 results).
 Splitting the subspaces by polarity restores the asymmetry the task demands, and modelling "−X" as the
 **orthogonal complement** of the X-subspace is the training-free negation operator (SpaceVLM's result).
 This converts CLAY's deficit into a method that should clear both baselines, while staying 100 % offline
 (no new artifact).
 
 **How.**
-1. **Per-polarity subspaces.** From [clip_attr_prompt_bank.pt](../src/clip_prompts.py): log-map the
+1. **Per-polarity subspaces.** From [clip_attr_prompt_bank.pt](../../src/clip_prompts.py): log-map the
    **positive** prompts onto their tangent mean, SVD → `V_k⁺` (CLAY subspace, positives only);
    independently do the **negative** prompts → `V_k⁻`. No naïve merge → kills the pre-SVD bottleneck.
 2. **Positive focus.** Project the DB into `span(V_k⁺)` and score reference↔DB cosine there (CLAY's
@@ -137,23 +141,23 @@ This converts CLAY's deficit into a method that should clear both baselines, whi
 4. **Per-condition option.** For multi-condition queries, build one subspace per condition and combine by
    intersection rather than one stacked SVD (the explicit fix to CLAY's bottleneck) — the headline
    variant vs. a stacked-positives ablation.
-5. **Reuse the frozen manifold helpers** `_log_map` / `_align_rotation` from [tier1.py](../src/tier1.py)
+5. **Reuse the frozen manifold helpers** `_log_map` / `_align_rotation` from [tier1.py](../../src/Baselines/clay.py)
    (read-only — they will not change). *(Clean-architecture note, optional: lift them into a shared
-   `src/manifold.py` that both `tier1.py` and this module import, per [CLAUDE.md](../CLAUDE.md)'s
+   `src/manifold.py` that both `tier1.py` and this module import, per [CLAUDE.md](../../CLAUDE.md)'s
    no-sideways-import rule. Flag it; don't block on it.)*
 
 **Artifacts.** None new — consumes the cached `clip_image_features_test.pt` + `clip_attr_prompt_bank.pt`.
 Runs fully offline, no Colab.
 
 **Papers to read first.**
-- **CLAY** — Lim et al., CVPR 2026 ([CLAY.md](CLAY.md), assigned) §3.2 — the subspace + rotation pipeline.
+- **CLAY** — Lim et al., CVPR 2026 ([CLAY.md](../literature/README.md), assigned) §3.2 — the subspace + rotation pipeline.
 - **SpaceVLM** — "Sub-Space Modeling of Negation in VLMs", 2025 — negation as subspace intersection,
   training-free; almost exactly step 3.
 - **Oldfield et al.**, "Parts-of-Speech-Grounded Subspaces", NeurIPS 2023 — PGA subspaces.
 - **"When Negation Is a Geometry Problem in VLMs"**, 2026 — geometric negation framing.
 - **Trager et al.**, ICCV 2023 — linear-subspace lineage.
 
-(All five are already catalogued in [SOTA.md](SOTA.md) §2 / §5.)
+(All five are already catalogued in [SOTA.md](../literature/SOTA.md) §2 / §5.)
 
 **Ablations (report rows).** `k⁺` / `k⁻` subspace dims; rejection weight `λ`; per-condition vs
 stacked-positives; rotation `H` ON / OFF (reuses Tier-1's existing toggle).
@@ -177,7 +181,7 @@ ranking); report sub-section *"Asymmetric conditional subspaces"*.
 
 Each member builds, runs, scores, and writes up their track end-to-end **without waiting on or talking
 to the other**. The only convergence point is Phase-C's master comparison table (all tiers × K∈{1,5,10}
-× 14 queries), which the shared [eval.py](../src/eval.py) + uniform CSV schema make a mechanical merge.
+× 14 queries), which the shared [eval.py](../../src/eval.py) + uniform CSV schema make a mechanical merge.
 
 ---
 

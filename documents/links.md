@@ -1,5 +1,7 @@
 # LINKS — All useful links retrived from the course papers
 
+> **📄 Course-provided information**, collected by Davide Cabitza on June 19, 2026.
+
 ## Model to use
 
 You should use CLIP ViT-B/32 from HuggingFace.

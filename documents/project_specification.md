@@ -1,5 +1,7 @@
 # Dynamic and Hybrid Conditioning for Compositional Image Retrieval
 
+> **📄 Provided by the course.** This is the assignment specification as given to us (v1.2), transcribed by Davide Cabitza on June 15, 2026. Every design decision in this repository traces back to it.
+
 **Deep Learning Assignment 2026** — Updated: 2026/05/21 — Version 1.2
 
 ---

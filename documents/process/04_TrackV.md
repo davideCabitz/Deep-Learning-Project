@@ -1,21 +1,25 @@
 # Track V — Theory You Must Understand Before Coding
 
+> **📜 Process document, kept as written.** Theory brief for Track V by Alfonso Antognozzi, June 28, 2026.
+>
+> **Outcome:** the first implementation (`tier2a_visual.py`) became the **GDE reproduction** ([`src/Baselines/gde.py`](../../src/Baselines/gde.py), R@5 0.061). Its extension became **GDE-VP** ([`src/Training-Free/gde_vp.py`](../../src/Training-Free/gde_vp.py)), best R@5 0.072 (α = 1.5). The image-space orthogonal-rejection idea carried over into [09_planSV](09_planSV.md) and the trained Φ models. Paper links point to full texts that are no longer in the repository; see the [reading list](../literature/README.md). File paths in this document refer to the layout before the July 5 refactor; see the [old → new file map](../README.md#old-file-names).
+
 > **Scope.** This document explains the *theory* behind the five papers backing Track V
 > (Visual-Prototype Compositional Retrieval). No implementation here — only the ideas,
 > formulas, and the chain of reasoning that makes the method correct. When every section
-> below reads as "obvious", you are ready to write [tier2a_visual.py](../src/tier2a_visual.py).
+> below reads as "obvious", you are ready to write [tier2a_visual.py](../../src/Baselines/gde.py).
 >
 > **The one-sentence thesis of Track V.** Do the whole composition in CLIP **image space**
 > (no modality gap), represent each attribute by a **direction mined from CelebA-train images**,
 > push the reference toward positives by **geodesic addition**, handle "−X" by **orthogonal
 > rejection** (delete the axis) instead of subtraction, then cosine-score the frozen DB.
 >
-> **How the five papers fit together.** [GDE](papers/GDE.md) is the spine — it gives the exact
-> formulas for mining directions and composing them on the sphere. [Trager](papers/VLM.md) is
-> the flat (linear) special case you ablate against. [TCAV](papers/TCAV.md) justifies "attribute
-> = a direction learned from has-X vs not-X". [PoS-Subspaces](papers/PSGS_VLM.md) supplies the
+> **How the five papers fit together.** [GDE](../literature/README.md) is the spine — it gives the exact
+> formulas for mining directions and composing them on the sphere. [Trager](../literature/README.md) is
+> the flat (linear) special case you ablate against. [TCAV](../literature/README.md) justifies "attribute
+> = a direction learned from has-X vs not-X". [PoS-Subspaces](../literature/README.md) supplies the
 > *projection / orthogonal-complement* mechanics and the proof that the sphere needs tangent-space
-> geometry. [VLMs-Don't-Understand-Negation](papers/VLM_DO_NOT_UNDERSTAND_NEGATIONSpdf.md) is the
+> geometry. [VLMs-Don't-Understand-Negation](../literature/README.md) is the
 > *why* of the gradeable insight — it diagnoses the exact failure that rejection fixes.
 
 ---
@@ -47,7 +51,7 @@ Everything below is the machinery to make those two fixes precise.
 
 ## 1. CLIP lives on a sphere — so geometry is spherical, not flat
 
-**Source: [GDE](papers/GDE.md) §3.1; [PoS-Subspaces](papers/PSGS_VLM.md) §2.2.**
+**Source: [GDE](../literature/README.md) §3.1; [PoS-Subspaces](../literature/README.md) §2.2.**
 
 CLIP normalizes every embedding, so `‖u‖ = 1`: all embeddings live on the unit hypersphere
 `S^{d−1} ⊂ ℝ^d`. The norm carries no information; only **direction** does, and similarity is cosine
@@ -60,7 +64,7 @@ To do linear algebra correctly on the sphere you move to the **tangent space** a
 
 - **Logarithmic map** `Log_μ(u)` — sends a point `u` on the sphere to a vector in the tangent plane
   `T_μ S^{d−1}` at `μ`. Think: "the initial velocity you'd set off with from `μ` to reach `u` along
-  a great circle." Closed form ([GDE](papers/GDE.md) Eq. 14):
+  a great circle." Closed form ([GDE](../literature/README.md) Eq. 14):
   ```
   Log_μ(u) = θ · (I − μμᵀ)(u − μ) / ‖(I − μμᵀ)(u − μ)‖ ,   θ = arccos(uᵀμ)
   ```
@@ -68,7 +72,7 @@ To do linear algebra correctly on the sphere you move to the **tangent space** a
   tangent plane*. `θ` is the geodesic distance (the angle). So `Log_μ(u)` is "unit tangent
   direction toward `u`, scaled by the angle to `u`".
 - **Exponential map** `Exp_μ(v)` — the inverse: takes a tangent vector and walks along the geodesic
-  back onto the sphere. Closed form ([GDE](papers/GDE.md) Eq. 13):
+  back onto the sphere. Closed form ([GDE](../literature/README.md) Eq. 13):
   ```
   Exp_μ(v) = cos(‖v‖)·μ + sin(‖v‖)·(v/‖v‖)
   ```
@@ -76,18 +80,18 @@ To do linear algebra correctly on the sphere you move to the **tangent space** a
 **Three properties you will rely on (and should test):**
 
 - **Round-trip:** `Exp_μ(Log_μ(u)) = u` (local inverse). Your unit test #1.
-- **Distance preservation near `μ`:** `d_S(u,u') ≈ ‖Log_μ(u) − Log_μ(u')‖` ([GDE](papers/GDE.md)
+- **Distance preservation near `μ`:** `d_S(u,u') ≈ ‖Log_μ(u) − Log_μ(u')‖` ([GDE](../literature/README.md)
   Eq. 1), *exact* when `u` or `u'` equals `μ`. This is *why* it's legitimate to do flat averaging in
   the tangent space — it approximates the true spherical objective.
 - **Validity domain:** `Log_μ` is undefined at the antipode `−μ` (the "cut locus"). On CLIP this
   never bites because of the **cone effect** — all embeddings sit within a small geodesic ball
-  (angle `< π/2` from the mean), which [GDE](papers/GDE.md) verifies empirically (Appendix C.1).
+  (angle `< π/2` from the mean), which [GDE](../literature/README.md) verifies empirically (Appendix C.1).
 
 > **Intrinsic mean `μ`.** The natural tangent point is the **intrinsic (Karcher) mean** — the point
-> minimizing average squared *geodesic* distance ([GDE](papers/GDE.md) Eq. 2), not the arithmetic
+> minimizing average squared *geodesic* distance ([GDE](../literature/README.md) Eq. 2), not the arithmetic
 > mean. Its defining property is the one that makes all the algebra clean: it **centers** the
 > log-mapped points, `Σ_i w_i Log_μ(u_i) = 0`. Computed by a short gradient descent
-> ([GDE](papers/GDE.md) Alg. 1), initialized at the normalized arithmetic mean. Understand this
+> ([GDE](../literature/README.md) Alg. 1), initialized at the normalized arithmetic mean. Understand this
 > centering property — it's what guarantees the decomposition below is unique.
 
 ---
@@ -96,7 +100,7 @@ To do linear algebra correctly on the sphere you move to the **tangent space** a
 
 ### 2.1 Why "attribute = direction" is legitimate (TCAV)
 
-**Source: [TCAV](papers/TCAV.md) §3.2.**
+**Source: [TCAV](../literature/README.md) §3.2.**
 
 TCAV's reusable idea (ignore the directional-derivative / saliency machinery — not needed here):
 a human concept corresponds to a **Concept Activation Vector (CAV)** — a single direction in
@@ -113,19 +117,19 @@ attribute labels are precisely the "with / without" supervision a CAV needs.
 
 ### 2.2 The faithful construction is geodesic, not linear (GDE)
 
-**Source: [GDE](papers/GDE.md) §3.2–3.3, Prop. 1–2.**
+**Source: [GDE](../literature/README.md) §3.2–3.3, Prop. 1–2.**
 
 GDE is the rigorous, sphere-aware version of "attribute = direction", built for exactly our setting
 (directions mined from *images*, which are noisy and sparse). The core object:
 
-> **Geodesic decomposability** ([GDE](papers/GDE.md) Def. 1). A set of composite embeddings is
+> **Geodesic decomposability** ([GDE](../literature/README.md) Def. 1). A set of composite embeddings is
 > *geodesically decomposable* if each one is `u_z = Exp_μ(v_{z₁} + … + v_{z_s})` — i.e. it's the
 > exp-map of a **sum of per-primitive tangent directions**. Addition happens in the tangent space;
 > the manifold composition is the exp-map of that sum.
 
 So the primitive direction `v_a` for attribute `a` is a **tangent vector at `μ`**, and composing
 attributes = **adding their tangent vectors then exp-mapping**. The optimal directions have a clean
-closed form — they are **tangent means** ([GDE](papers/GDE.md) Prop. 1, Eq. 7):
+closed form — they are **tangent means** ([GDE](../literature/README.md) Prop. 1, Eq. 7):
 
 ```
 v_a = mean over images with attribute a of  Log_μ(u_image)
@@ -136,20 +140,20 @@ direction. (For a two-axis grid like attribute×object, `v_a` is the mean over t
 
 **The two image-specific complications GDE solves for you — know they exist:**
 
-- **Noise** ([GDE](papers/GDE.md) §3.3.1, Prop. 2). A real image of "smiling" also contains hair,
+- **Noise** ([GDE](../literature/README.md) §3.3.1, Prop. 2). A real image of "smiling" also contains hair,
   background, lighting — information *not* in the concept. GDE down-weights noisier images via a
   per-image weight `p`. Simplest choice: uniform `p = 1/k`. Better: the **CLIP image-to-text
-  softmax** `P(image | "a photo of {a}")` ([GDE](papers/GDE.md) Eq. 12) — images that match the
+  softmax** `P(image | "a photo of {a}")` ([GDE](../literature/README.md) Eq. 12) — images that match the
   attribute's text prompt count more. The denoised per-tuple vector is the weighted tangent mean
   (Eq. 10). *This is an ablation axis for you (uniform vs CLIP-weighted).*
-- **Sparsity** ([GDE](papers/GDE.md) §3.3.2, Eq. 11). Some attribute combos have no images. Doesn't
+- **Sparsity** ([GDE](../literature/README.md) §3.3.2, Eq. 11). Some attribute combos have no images. Doesn't
   matter: because directions are *per-primitive* averages, you recover a direction for **every**
   primitive (and thus every composition) as long as each primitive appears in *some* image. Relevant
   if you ever build multi-attribute prototypes.
 
 ### 2.3 The headline empirical result that justifies the whole track
 
-**Source: [GDE](papers/GDE.md) §4.3 (and the contrast with [Trager](papers/VLM.md)).**
+**Source: [GDE](../literature/README.md) §4.3 (and the contrast with [Trager](../literature/README.md)).**
 
 GDE proves image embeddings are **not** well-approximated by *linear* (flat) decomposition — the
 geodesic version wins decisively. On UT-Zappos compositional classification, GDE (image) reaches
@@ -163,7 +167,7 @@ detail. CelebA appears in GDE's own experiments, so the setting transfers direct
 
 ## 3. Composition step 1 — adding the positives (geodesic addition)
 
-**Source: [GDE](papers/GDE.md) Def. 1 / §4.5.**
+**Source: [GDE](../literature/README.md) Def. 1 / §4.5.**
 
 Once each positive attribute has a tangent direction `v_a⁺`, "make `v_ref` more X⁺" is:
 
@@ -190,7 +194,7 @@ negation fails*, the other gives you *the projection operator that fixes it*.
 
 ### 4.1 Why subtraction is the wrong operator (Alhamoud et al.)
 
-**Source: [VLMs-Don't-Understand-Negation](papers/VLM_DO_NOT_UNDERSTAND_NEGATIONSpdf.md) §4.1.**
+**Source: [VLMs-Don't-Understand-Negation](../literature/README.md) §4.1.**
 
 The paper's diagnosis, which is the motivation for your whole negation step:
 
@@ -210,7 +214,7 @@ route; you take their *diagnosis*, not their solution, and answer it training-fr
 
 ### 4.2 The operator that does it — orthogonal rejection / complement (PoS-Subspaces)
 
-**Source: [PoS-Subspaces](papers/PSGS_VLM.md) §2.2, Eq. 5.**
+**Source: [PoS-Subspaces](../literature/README.md) §2.2, Eq. 5.**
 
 Oldfield et al. give the exact, geometry-aware projection mechanics you need. For a subspace spanned
 by an orthonormal `W` (for a single attribute, `W = v̂_a`, one unit direction), on the **sphere**:
@@ -253,15 +257,15 @@ one:
 
 ## 5. The ablation against the linear world (Trager et al.)
 
-**Source: [Trager, "Linear Spaces of Meanings"](papers/VLM.md) §3, Prop. 4.**
+**Source: [Trager, "Linear Spaces of Meanings"](../literature/README.md) §3, Prop. 4.**
 
 Trager is the **flat predecessor** of GDE and your LDE baseline. Same idea — composite ≈ sum of
 per-factor vectors — but in **ambient Euclidean space**, no sphere:
 
-> **Decomposable embeddings** ([Trager](papers/VLM.md) Def. 1): `u_z ≈ u₀ + u_{z₁} + … + u_{z_k}`.
+> **Decomposable embeddings** ([Trager](../literature/README.md) Def. 1): `u_z ≈ u₀ + u_{z₁} + … + u_{z_k}`.
 > The **ideal words** `u_{z_i}` are recovered as plain **arithmetic means** of the embeddings sharing
-> that factor ([Trager](papers/VLM.md) Prop. 4) — the *centered* version (`Σ u_{z_i} = 0`,
-> [Trager](papers/VLM.md) Lemma 3) makes them unique, the direct analogue of GDE's centering.
+> that factor ([Trager](../literature/README.md) Prop. 4) — the *centered* version (`Σ u_{z_i} = 0`,
+> [Trager](../literature/README.md) Lemma 3) makes them unique, the direct analogue of GDE's centering.
 
 GDE states explicitly that it **reduces to Trager when `M = ℝⁿ`** — there the intrinsic mean *is* the
 arithmetic mean and log/exp *are* the identity. So your **LDE ablation = Track V with the log/exp maps
@@ -301,7 +305,7 @@ Read this as the argument your report must make; if any link is fuzzy, re-read t
    win. **(§5 — Trager §3, Prop. 4)**
 9. ⇒ A query composed this way, cosine-scored against the frozen DB, should **beat Tier-0 and Tier-1**,
    and in particular stop the negation queries (e.g. `−Male, −Mustache`) from collapsing to 0.000 —
-   the concrete success signal from [TRAINING_FREE_SPLIT](TRAINING_FREE_SPLIT.md) §4.
+   the concrete success signal from [TRAINING_FREE_SPLIT](03_TRAINING_FREE_SPLIT.md) §4.
 
 ---
 
@@ -309,11 +313,11 @@ Read this as the argument your report must make; if any link is fuzzy, re-read t
 
 | Paper | File | Role in Track V | Read | What you extract |
 |---|---|---|---|---|
-| **GDE** (Berasi et al., CVPR 2025) | [GDE.md](papers/GDE.md) | **Spine** — the method | §3.1–3.3, Prop. 1–2, App. A (Eq. 13–14) | Log/Exp closed forms, intrinsic mean, tangent-mean direction, geodesic addition, noise/sparsity handling |
-| **VLMs Don't Understand Negation** (Alhamoud et al., 2025) | [VLM_DO_NOT…md](papers/VLM_DO_NOT_UNDERSTAND_NEGATIONSpdf.md) | *Why* negation ≠ subtraction | §4.1 + Fig. 6 | Affirmation bias; negation is an axis to remove, not a point to subtract toward |
-| **PoS-Grounded Subspaces** (Oldfield et al., NeurIPS 2023) | [PSGS_VLM.md](papers/PSGS_VLM.md) | The projection / rejection operator | §2.2, Eq. 5 | Tangent-space `Π` (keep) and `Π⊥` (negate); proof that complement erases a factor cleanly |
-| **Linear Spaces of Meanings** (Trager et al., ICCV 2023) | [VLM.md](papers/VLM.md) | The **LDE** ablation baseline | §3, Prop. 4, Lemma 3; §5 retrieval | Flat mean-difference directions; centered ideal words; GDE-without-the-maps |
-| **TCAV** (Kim et al., ICML 2018) | [TCAV.md](papers/TCAV.md) | Conceptual licence for "attribute = direction" | §3.2 (skip §3.3+) | CAV = direction separating with/without; cosine-sorting by a CAV |
+| **GDE** (Berasi et al., CVPR 2025) | [GDE.md](../literature/README.md) | **Spine** — the method | §3.1–3.3, Prop. 1–2, App. A (Eq. 13–14) | Log/Exp closed forms, intrinsic mean, tangent-mean direction, geodesic addition, noise/sparsity handling |
+| **VLMs Don't Understand Negation** (Alhamoud et al., 2025) | [VLM_DO_NOT…md](../literature/README.md) | *Why* negation ≠ subtraction | §4.1 + Fig. 6 | Affirmation bias; negation is an axis to remove, not a point to subtract toward |
+| **PoS-Grounded Subspaces** (Oldfield et al., NeurIPS 2023) | [PSGS_VLM.md](../literature/README.md) | The projection / rejection operator | §2.2, Eq. 5 | Tangent-space `Π` (keep) and `Π⊥` (negate); proof that complement erases a factor cleanly |
+| **Linear Spaces of Meanings** (Trager et al., ICCV 2023) | [VLM.md](../literature/README.md) | The **LDE** ablation baseline | §3, Prop. 4, Lemma 3; §5 retrieval | Flat mean-difference directions; centered ideal words; GDE-without-the-maps |
+| **TCAV** (Kim et al., ICML 2018) | [TCAV.md](../literature/README.md) | Conceptual licence for "attribute = direction" | §3.2 (skip §3.3+) | CAV = direction separating with/without; cosine-sorting by a CAV |
 
 **Reading order:** GDE (deep) → Alhamoud (problem framing) → PoS §2.2 (the operator) → Trager (the
 ablation) → TCAV (grounding). Minimum to start coding: **GDE + PoS §2.2 + Alhamoud**. Trager is needed
@@ -336,5 +340,5 @@ You understand Track V when you can answer all of these without re-opening the p
 - [ ] Which CelebA queries are the litmus test for the negation insight, and what's the failing number
       they currently produce?
 
-When all nine are reflexive, open [tier2a_visual.py](../src/tier2a_visual.py) and start with the
+When all nine are reflexive, open [tier2a_visual.py](../../src/Baselines/gde.py) and start with the
 Log/Exp round-trip test.
